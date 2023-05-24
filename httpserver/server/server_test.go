@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	mockMongo "github.com/DennisPing/cs6650-twinder-a3/httpserver/db/mocks"
 	mockMetrics "github.com/DennisPing/cs6650-twinder-a3/httpserver/metrics/mocks"
 	mockPublisher "github.com/DennisPing/cs6650-twinder-a3/httpserver/rmqproducer/mocks"
 	"github.com/DennisPing/cs6650-twinder-a3/lib/models"
@@ -29,7 +30,9 @@ func TestHandlers(t *testing.T) {
 		mock.AnythingOfType("func(*rabbitmq.PublishOptions)"),
 		mock.AnythingOfType("func(*rabbitmq.PublishOptions)")).Return(nil)
 
-	s := NewServer(":8080", mockMetrics, mockPublisher)
+	mockMongoClient := mockMongo.NewMongoDB(t)
+
+	s := NewServer(":8080", mockMetrics, mockPublisher, mockMongoClient)
 
 	tests := []struct {
 		name           string
@@ -93,7 +96,10 @@ func TestHandlersError(t *testing.T) {
 	// Mock the internal Publisher
 	mockPublisher := mockPublisher.NewPublisher(t)
 
-	s := NewServer(":8080", mockMetrics, mockPublisher)
+	// Mock the internal MongoDB client
+	mockMongoClient := mockMongo.NewMongoDB(t)
+
+	s := NewServer(":8080", mockMetrics, mockPublisher, mockMongoClient)
 
 	tests := []struct {
 		name            string

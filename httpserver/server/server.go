@@ -3,41 +3,45 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/DennisPing/cs6650-twinder-a3/httpserver/db"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/metrics"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/rmqproducer"
 	"github.com/DennisPing/cs6650-twinder-a3/lib/logger"
-	"github.com/DennisPing/cs6650-twinder-a3/lib/models"
 	"github.com/go-chi/chi"
 	"github.com/wagslane/go-rabbitmq"
 )
 
 type Server struct {
 	http.Server
-	metrics.Metrics
-	rmqproducer.Publisher
-	ticker      *time.Ticker
-	cancelToken context.CancelFunc
+	metrics  metrics.Metrics       // interface
+	pub      rmqproducer.Publisher // interface
+	database db.MongoDB            // interface
+	ticker   *time.Ticker
+	cancel   context.CancelFunc
 }
 
-// Create a new server which is composed of an HTTP server and a RabbitMQ publisher
-func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publisher) *Server {
+// Create a new server which is composed of an HTTP server, RabbitMQ publisher, and MongoDB client
+func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publisher, mongoClient db.MongoDB) *Server {
 	chiRouter := chi.NewRouter()
+
+	// Build the server
 	s := &Server{
 		Server: http.Server{
 			Addr:    addr,
 			Handler: chiRouter,
 		},
-		Metrics:   metrics,
-		Publisher: publisher,
+		metrics:  metrics,
+		pub:      publisher,
+		database: mongoClient,
 	}
-	chiRouter.Get("/health", s.homeHandler)
-	chiRouter.Post("/swipe/{leftorright}/", s.swipeHandler)
+	chiRouter.Get("/health", s.HomeHandler)
+	chiRouter.Post("/swipe/{leftorright}/", s.SwipeHandler)
+	chiRouter.Get("/matches/{userId}/", s.MatchesHandler)
+	chiRouter.Get("/stats/{userId}/", s.StatsHandler)
 	return s
 }
 
@@ -45,14 +49,14 @@ func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publi
 func (s *Server) Start() error {
 	s.ticker = time.NewTicker(5 * time.Second)
 	ctx, cancel := context.WithCancel(context.Background())
-	s.cancelToken = cancel
+	s.cancel = cancel
 	go func() { // Metrics goroutine
 		for {
 			select {
 			case <-ctx.Done(): // Quit
 				return
 			case <-s.ticker.C: // Keep on ticking
-				err := s.SendMetrics()
+				err := s.metrics.SendMetrics()
 				if err != nil {
 					logger.Error().Msgf("unable to send metrics to Axiom: %v", err)
 				}
@@ -64,7 +68,7 @@ func (s *Server) Start() error {
 
 // Stop the server and stop the ticker
 func (s *Server) Stop() {
-	s.cancelToken() // Stop the metrics goroutine
+	s.cancel()      // Stop the metrics goroutine
 	s.ticker.Stop() // Stop the ticker
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -73,64 +77,10 @@ func (s *Server) Stop() {
 	if err := s.Shutdown(shutdownCtx); err != nil {
 		logger.Error().Msgf("Failed to shutdown HTTP server gracefully: %v", err)
 	}
-}
 
-// Health endpoint
-func (s *Server) homeHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Hello world!"))
-}
-
-// Handle swipe left or right
-func (s *Server) swipeHandler(w http.ResponseWriter, r *http.Request) {
-	leftorright := chi.URLParam(r, "leftorright")
-
-	body, err := io.ReadAll(r.Body)
+	err := s.database.Disconnect(context.Background())
 	if err != nil {
-		writeErrorResponse(w, r.Method, http.StatusBadRequest, "bad request")
-		return
-	}
-
-	var reqBody models.SwipePayload
-	err = json.Unmarshal(body, &reqBody)
-	if err != nil {
-		writeErrorResponse(w, r.Method, http.StatusBadRequest, "bad request")
-		return
-	}
-	if _, err := strconv.Atoi(reqBody.Swiper); err != nil {
-		writeErrorResponse(w, r.Method, http.StatusBadRequest, fmt.Sprintf("invalid swiper: %s", reqBody.Swiper))
-		return
-	}
-	if _, err := strconv.Atoi(reqBody.Swipee); err != nil {
-		writeErrorResponse(w, r.Method, http.StatusBadRequest, fmt.Sprintf("invalid swipee: %s", reqBody.Swipee))
-		return
-	}
-	if len(reqBody.Comment) > 256 {
-		writeErrorResponse(w, r.Method, http.StatusBadRequest, "comment too long")
-		return
-	}
-
-	// Left and right do the same thing for now
-	// Always return a response back to client since this is asynchronous, don't let them know about RabbitMQ
-	switch leftorright {
-	case "left":
-		writeStatusResponse(w, http.StatusCreated)
-		s.IncrementThroughput()
-	case "right":
-		writeStatusResponse(w, http.StatusCreated)
-		s.IncrementThroughput()
-	default:
-		writeErrorResponse(w, r.Method, http.StatusBadRequest, "not left or right")
-		return
-	}
-
-	// Append the direction to the request body
-	reqBody.Direction = leftorright
-
-	// Publish the message
-	if err = s.PublishToRmq(reqBody); err != nil {
-		logger.Error().Msgf("failed to publish to rabbitmq: %v", err)
+		logger.Error().Msgf("Failed to disconnect MongoDB client: %v", err)
 	}
 }
 
@@ -141,7 +91,7 @@ func (s *Server) PublishToRmq(payload interface{}) error {
 	if err != nil {
 		return err
 	}
-	return s.Publish(
+	return s.pub.Publish(
 		[]byte(respBytes),
 		[]string{""},
 		rabbitmq.WithPublishOptionsContentType("application/json"),
