@@ -15,20 +15,20 @@ type SwipePayload struct {
 	Direction string `json:"direction"`
 }
 
-// Server side GET /swipes?userId=1234
-type TwinderUserStats struct {
-	UserId   string `json:"userId"`
-	Likes    int    `json:"likes"`
-	Dislikes int    `json:"dislikes"`
+// Server side GET /stats/{userId}/
+type UserStats struct {
+	UserId      string `json:"userId"`
+	NumLikes    int    `json:"numLikes"`
+	NumDislikes int    `json:"numDislikes"`
 }
 
-// Server side GET /matches?userId=1234
-type TwinderMatches struct {
-	UserId  string   `json:"userId"`
-	Matches []string `json:"matches"`
+// Server side GET /matches/{userId}/
+type Matches struct {
+	UserId    string   `json:"userId"`
+	MatchList []string `json:"matchList"`
 }
 
-// Server side debugging GET /matches/all
-type AllTwinderUserStats struct {
-	UsersStats []TwinderUserStats `json:"users_stats"`
+// Server side debugging GET /stats/all
+type AllUserStats struct {
+	UsersStats []UserStats `json:"allUsersStats"`
 }
