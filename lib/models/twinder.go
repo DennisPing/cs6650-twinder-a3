@@ -7,14 +7,6 @@ type SwipeRequest struct {
 	Comment string `json:"comment"`
 }
 
-// Server side swipe with the direction payload
-type SwipePayload struct {
-	Swiper    string `json:"swiper"`
-	Swipee    string `json:"swipee"`
-	Comment   string `json:"comment"`
-	Direction string `json:"direction"`
-}
-
 // Server side GET /stats/{userId}/
 type UserStats struct {
 	UserId      string `json:"userId"`
