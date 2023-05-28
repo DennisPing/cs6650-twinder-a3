@@ -14,3 +14,8 @@ type UserStats struct {
 	NumDislikes int      `json:"numDislikes,omitempty"`
 	MatchList   []string `json:"matchList,omitempty"`
 }
+
+// Server side error
+type ErrorResponse struct {
+	Message string `json:"message"`
+}
