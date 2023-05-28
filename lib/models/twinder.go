@@ -2,25 +2,15 @@ package models
 
 // Client side swipe
 type SwipeRequest struct {
-	Swiper  string `json:"swiper"`
-	Swipee  string `json:"swipee"`
-	Comment string `json:"comment"`
+	Swiper    string `json:"swiper"`
+	Swipee    string `json:"swipee"`
+	Comment   string `json:"comment"`
+	Direction string `json:"direction,omitempty"`
 }
 
-// Server side GET /stats/{userId}/
+// Server side user stats
 type UserStats struct {
-	UserId      string `json:"userId"`
-	NumLikes    int    `json:"numLikes"`
-	NumDislikes int    `json:"numDislikes"`
-}
-
-// Server side GET /matches/{userId}/
-type Matches struct {
-	UserId    string   `json:"userId"`
-	MatchList []string `json:"matchList"`
-}
-
-// Server side debugging GET /stats/all
-type AllUserStats struct {
-	UsersStats []UserStats `json:"allUsersStats"`
+	NumLikes    int      `json:"numLikes,omitempty"`
+	NumDislikes int      `json:"numDislikes,omitempty"`
+	MatchList   []string `json:"matchList,omitempty"`
 }
