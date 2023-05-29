@@ -33,14 +33,16 @@ func TestPostSwipe(t *testing.T) {
 		mock.AnythingOfType("[]uint8"),
 		mock.AnythingOfType("[]string"),
 		mock.AnythingOfType("func(*rabbitmq.PublishOptions)"),
-		mock.AnythingOfType("func(*rabbitmq.PublishOptions)")).Return(nil)
+		mock.AnythingOfType("func(*rabbitmq.PublishOptions)")).
+		Return(nil)
 
 	// Mock the internal Database
 	mockDynamoClient := mockDynamo.NewDynamoClienter(t)
 	mockDynamoClient.EXPECT().UpdateItem(
 		mock.MatchedBy(func(ctx context.Context) bool { return true }),
 		mock.AnythingOfType("*dynamodb.UpdateItemInput"),
-		mock.AnythingOfType("string")).Return(nil, nil)
+		mock.AnythingOfType("string")).
+		Return(nil, nil)
 
 	databaseStub := &db.DatabaseClient{
 		Client: mockDynamoClient,

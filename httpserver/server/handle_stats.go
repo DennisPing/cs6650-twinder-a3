@@ -10,7 +10,7 @@ import (
 )
 
 // GET /stats/{userId}/
-func (s *Server) StatsHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetStats(w http.ResponseWriter, r *http.Request) {
 	userId := chi.URLParam(r, "userId")
 	userIdInt, err := strconv.Atoi(userId)
 	if err != nil {

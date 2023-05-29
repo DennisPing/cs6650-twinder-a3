@@ -13,7 +13,7 @@ import (
 )
 
 // POST /swipe/{leftorright}/
-func (s *Server) SwipeHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) PostSwipe(w http.ResponseWriter, r *http.Request) {
 	leftorright := chi.URLParam(r, "leftorright")
 
 	body, err := io.ReadAll(r.Body)

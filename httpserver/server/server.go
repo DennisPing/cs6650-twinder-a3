@@ -38,10 +38,10 @@ func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publi
 		pub:     publisher,
 		db:      dbClient,
 	}
-	chiRouter.Get("/health", s.HomeHandler)
-	chiRouter.Post("/swipe/{leftorright}/", s.SwipeHandler)
-	chiRouter.Get("/matches/{userId}/", s.MatchesHandler)
-	chiRouter.Get("/stats/{userId}/", s.StatsHandler)
+	chiRouter.Get("/health", s.GetHome)
+	chiRouter.Post("/swipe/{leftorright}/", s.PostSwipe)
+	chiRouter.Get("/matches/{userId}/", s.GetMatches)
+	chiRouter.Get("/stats/{userId}/", s.GetStats)
 	return s
 }
 

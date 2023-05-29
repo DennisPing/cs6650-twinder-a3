@@ -33,15 +33,14 @@ func NewDatabaseClient() (*DatabaseClient, error) {
 		context.Background(),
 		config.WithRegion("us-east-2"),
 		config.WithRetryer(func() aws.Retryer {
-			return aws.NopRetryer{}
+			return aws.NopRetryer{} // Don't retry errors
 		}),
 	)
 	if err != nil {
 		return nil, err
 	}
-	client := dynamodb.NewFromConfig(cfg)
 	return &DatabaseClient{
-		Client: client,
+		Client: dynamodb.NewFromConfig(cfg),
 		Table:  "SwipeData",
 	}, nil
 }
@@ -51,27 +50,27 @@ func (d *DatabaseClient) GetUserStats(ctx context.Context, userId int) (*models.
 	item, err := d.getItem(ctx, userId)
 	if err != nil {
 		return nil, err
-	} else if item != nil {
+	}
+	if item != nil {
 		return &models.UserStats{
 			NumLikes:    item.NumLikes,
 			NumDislikes: item.NumDislikes,
 		}, nil
-	} else {
-		return nil, fmt.Errorf("userId not found: %d", userId)
 	}
+	return nil, fmt.Errorf("userId not found: %d", userId)
 }
 
 func (d *DatabaseClient) GetMatches(ctx context.Context, userId int) (*models.UserMatches, error) {
 	item, err := d.getItem(ctx, userId)
 	if err != nil {
 		return nil, err
-	} else if item != nil {
+	}
+	if item != nil {
 		return &models.UserMatches{
 			MatchList: item.MatchList,
 		}, nil
-	} else {
-		return nil, fmt.Errorf("userId not found: %d", userId)
 	}
+	return nil, fmt.Errorf("userId not found: %d", userId)
 }
 
 // Update a user's stats. If userId doesn't exist, then a new entry is created
@@ -123,13 +122,12 @@ func (d *DatabaseClient) getItem(ctx context.Context, userId int) (*models.Dynam
 	if err != nil {
 		return nil, fmt.Errorf("failed to get item: %w", err)
 	}
-	if resp.Item == nil {
+	if resp.Item == nil { // Item not found
 		return nil, nil
 	}
 	dynamoItem := &models.DynamoUserStats{}
 	if err = attributevalue.UnmarshalMap(resp.Item, &dynamoItem); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal item: %w", err)
 	}
-	// logger.Debug().Str("method", "GET").Interface("dynamoItem", dynamoItem).Send()
 	return dynamoItem, nil
 }
