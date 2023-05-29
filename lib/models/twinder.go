@@ -10,9 +10,9 @@ type SwipeRequest struct {
 
 // Server side user stats
 type UserStats struct {
-	NumLikes    int      `json:"numLikes,omitempty"`
-	NumDislikes int      `json:"numDislikes,omitempty"`
-	MatchList   []string `json:"matchList,omitempty"`
+	NumLikes    int   `json:"numLikes,omitempty"`
+	NumDislikes int   `json:"numDislikes,omitempty"`
+	MatchList   []int `json:"matchList,omitempty"`
 }
 
 // Server side error
