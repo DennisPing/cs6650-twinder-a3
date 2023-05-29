@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/db"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/metrics"
@@ -24,7 +22,7 @@ func main() {
 	addr := fmt.Sprintf(":%s", port)
 
 	// Initialize metrics client
-	metrics, err := metrics.NewMetrics()
+	metricsClient, err := metrics.NewMetricsClient()
 	if err != nil {
 		logger.Fatal().Msgf("unable to set up metrics: %v", err)
 	}
@@ -41,25 +39,15 @@ func main() {
 	}
 	defer publisher.Close()
 
-	// Connect to MongoDB
-	dbClient, err := db.NewMongoDBClient(os.Getenv("MONGO_URL"))
+	// Initialize database client
+	dbClient, err := db.NewDatabaseClient()
 	if err != nil {
-		logger.Fatal().Msgf("unable to connect to MongoDB: %v", err)
+		logger.Fatal().Msgf("unable to connect to DynamoDB: %v", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	err = dbClient.Connect(ctx)
-	if err != nil {
-		logger.Fatal().Msgf("unable to connect to MongoDB: %v", err)
-	}
-	err = dbClient.Ping(ctx)
-	if err != nil {
-		logger.Fatal().Msgf("unable to ping MongoDB after connecting: %v", err)
-	}
-	logger.Info().Msg("connected to MongoDB")
+	logger.Info().Msg("connected to DynamoDB")
 
 	// Initialize the http server
-	server := server.NewServer(addr, metrics, publisher, dbClient)
+	server := server.NewServer(addr, metricsClient, publisher, dbClient)
 
 	// Run the http server in a goroutine
 	fmt.Printf("Starting server on port %s...\n", port)

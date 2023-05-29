@@ -22,3 +22,6 @@ LICENSE
 
 # Ignore mocks
 **/mocks/
+
+## Ignore _test.go files
+*_test.go

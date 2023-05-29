@@ -22,7 +22,7 @@ func (s *Server) SwipeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reqBody models.SwipePayload
+	var reqBody models.SwipeRequest
 	err = json.Unmarshal(body, &reqBody)
 	if err != nil {
 		writeErrorResponse(w, r.Method, http.StatusBadRequest, "bad request")
@@ -45,10 +45,10 @@ func (s *Server) SwipeHandler(w http.ResponseWriter, r *http.Request) {
 	// Always return a response back to client since this is asynchronous, don't let them know about RabbitMQ
 	switch leftorright {
 	case "left":
-		writeStatusResponse(w, http.StatusCreated)
+		// writeStatusResponse(w, http.StatusCreated)
 		s.metrics.IncrementThroughput()
 	case "right":
-		writeStatusResponse(w, http.StatusCreated)
+		// writeStatusResponse(w, http.StatusCreated)
 		s.metrics.IncrementThroughput()
 	default:
 		writeErrorResponse(w, r.Method, http.StatusBadRequest, "not left or right")
@@ -57,6 +57,17 @@ func (s *Server) SwipeHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Append the direction to the request body
 	reqBody.Direction = leftorright
+
+	// TODO: Delete later
+	userId, _ := strconv.Atoi(reqBody.Swiper)
+	swipee, _ := strconv.Atoi(reqBody.Swipee)
+
+	err = s.db.UpdateUserStats(r.Context(), userId, swipee, leftorright)
+	if err != nil {
+		writeErrorResponse(w, r.Method, http.StatusInternalServerError, err.Error())
+	} else {
+		writeStatusResponse(w, r.Method, http.StatusCreated)
+	}
 
 	// Publish the message
 	if err = s.PublishToRmq(reqBody); err != nil {

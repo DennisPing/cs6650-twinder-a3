@@ -4,28 +4,28 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/db"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/metrics"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/rmqproducer"
 	"github.com/DennisPing/cs6650-twinder-a3/lib/logger"
+	"github.com/DennisPing/cs6650-twinder-a3/lib/models"
 	"github.com/go-chi/chi"
 	"github.com/wagslane/go-rabbitmq"
 )
 
 type Server struct {
 	http.Server
-	metrics  metrics.Metrics       // interface
-	pub      rmqproducer.Publisher // interface
-	database db.MongoDB            // interface
-	ticker   *time.Ticker
-	cancel   context.CancelFunc
+	metrics metrics.Metrics       // interface
+	pub     rmqproducer.Publisher // interface
+	db      *db.DatabaseClient
+	ticker  *time.Ticker
+	cancel  context.CancelFunc
 }
 
-// Create a new server which is composed of an HTTP server, RabbitMQ publisher, and MongoDB client
-func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publisher, mongoClient db.MongoDB) *Server {
+// Create a new server which has an HTTP server, Metrics client, RabbitMQ publisher, and Database client
+func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publisher, dbClient *db.DatabaseClient) *Server {
 	chiRouter := chi.NewRouter()
 
 	// Build the server
@@ -34,9 +34,9 @@ func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publi
 			Addr:    addr,
 			Handler: chiRouter,
 		},
-		metrics:  metrics,
-		pub:      publisher,
-		database: mongoClient,
+		metrics: metrics,
+		pub:     publisher,
+		db:      dbClient,
 	}
 	chiRouter.Get("/health", s.HomeHandler)
 	chiRouter.Post("/swipe/{leftorright}/", s.SwipeHandler)
@@ -77,11 +77,6 @@ func (s *Server) Stop() {
 	if err := s.Shutdown(shutdownCtx); err != nil {
 		logger.Error().Msgf("Failed to shutdown HTTP server gracefully: %v", err)
 	}
-
-	err := s.database.Disconnect(context.Background())
-	if err != nil {
-		logger.Error().Msgf("Failed to disconnect MongoDB client: %v", err)
-	}
 }
 
 // Publish a message out to the RabbitMQ exchange
@@ -99,29 +94,29 @@ func (s *Server) PublishToRmq(payload interface{}) error {
 	)
 }
 
-// Write a simple HTTP status to the response writer
-func writeStatusResponse(w http.ResponseWriter, statusCode int) {
-	logger.Debug().Int("code", statusCode)
+// Send a simple HTTP response with no payload
+func writeStatusResponse(w http.ResponseWriter, method string, statusCode int) {
+	logger.Debug().Str("method", method).Int("code", statusCode)
 	w.WriteHeader(statusCode)
 }
 
-// Marshal and write a JSON response to the response writer
-func writeJsonResponse(w http.ResponseWriter, statusCode int, payload interface{}) {
-	respBytes, err := json.Marshal(payload)
-	if err != nil {
-		logger.Error().Int("code", http.StatusInternalServerError).Msg("error marshaling JSON response")
-		http.Error(w, "", http.StatusInternalServerError)
-		return
-	}
-	logger.Debug().Interface("send", payload).Send()
+// Send an HTTP response with JSON payload
+func writeJsonResponse(w http.ResponseWriter, method string, statusCode int, payload interface{}) {
+	logger.Debug().Str("method", method).Interface("payload", payload).Send()
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
 	w.WriteHeader(statusCode)
-	w.Write(respBytes)
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		writeErrorResponse(w, method, http.StatusInternalServerError, "failed to encode JSON response")
+	}
 }
 
-// Write an HTTP error to the response writer
+// Send an HTTP response error with a message
 func writeErrorResponse(w http.ResponseWriter, method string, statusCode int, message string) {
 	logger.Warn().Str("method", method).Int("code", statusCode).Msg(message)
-	http.Error(w, message, statusCode)
+	errorResp := &models.ErrorResponse{
+		Message: message,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	_ = json.NewEncoder(w).Encode(errorResp)
 }

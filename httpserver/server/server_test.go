@@ -2,37 +2,52 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	mockMongo "github.com/DennisPing/cs6650-twinder-a3/httpserver/db/mocks"
+	"github.com/DennisPing/cs6650-twinder-a3/httpserver/db"
+	mockDynamo "github.com/DennisPing/cs6650-twinder-a3/httpserver/db/mocks"
 	mockMetrics "github.com/DennisPing/cs6650-twinder-a3/httpserver/metrics/mocks"
 	mockPublisher "github.com/DennisPing/cs6650-twinder-a3/httpserver/rmqproducer/mocks"
 	"github.com/DennisPing/cs6650-twinder-a3/lib/models"
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
 
-func TestHandlers(t *testing.T) {
+func TestPostSwipe(t *testing.T) {
 	// Mock the internal Metrics
 	mockMetrics := mockMetrics.NewMetrics(t)
-	mockMetrics.On("IncrementThroughput").Return()
+	mockMetrics.EXPECT().IncrementThroughput().Return()
 
 	// Mock the internal Publisher
 	mockPublisher := mockPublisher.NewPublisher(t)
-	mockPublisher.On("Publish",
+	mockPublisher.EXPECT().Publish(
 		mock.AnythingOfType("[]uint8"),
 		mock.AnythingOfType("[]string"),
 		mock.AnythingOfType("func(*rabbitmq.PublishOptions)"),
 		mock.AnythingOfType("func(*rabbitmq.PublishOptions)")).Return(nil)
 
-	mockMongoClient := mockMongo.NewMongoDB(t)
+	// Mock the internal Database
+	mockDynamoClient := mockDynamo.NewDynamoClienter(t)
+	mockDynamoClient.EXPECT().UpdateItem(
+		mock.MatchedBy(func(ctx context.Context) bool { return true }),
+		mock.AnythingOfType("*dynamodb.UpdateItemInput"),
+		mock.AnythingOfType("string")).Return(nil, nil)
 
-	s := NewServer(":8080", mockMetrics, mockPublisher, mockMongoClient)
+	databaseStub := &db.DatabaseClient{
+		Client: mockDynamoClient,
+		Table:  "SwipeData",
+	}
+
+	s := NewServer(":8080", mockMetrics, mockPublisher, databaseStub)
 
 	tests := []struct {
 		name           string
@@ -52,7 +67,7 @@ func TestHandlers(t *testing.T) {
 			name:   "swipe left",
 			method: "POST",
 			url:    "/swipe/left/",
-			body: models.SwipePayload{
+			body: models.SwipeRequest{
 				Swiper:  "1234",
 				Swipee:  "5678",
 				Comment: "asdf"},
@@ -62,7 +77,7 @@ func TestHandlers(t *testing.T) {
 			name:   "swipe right",
 			method: "POST",
 			url:    "/swipe/right/",
-			body: models.SwipePayload{
+			body: models.SwipeRequest{
 				Swiper:  "1234",
 				Swipee:  "5678",
 				Comment: "asdf"},
@@ -89,17 +104,18 @@ func TestHandlers(t *testing.T) {
 	}
 }
 
-func TestHandlersError(t *testing.T) {
-	// Mock the internal Metrics
+func TestPostSwipeError(t *testing.T) {
+	// Mock internal dependencies
 	mockMetrics := mockMetrics.NewMetrics(t)
-
-	// Mock the internal Publisher
 	mockPublisher := mockPublisher.NewPublisher(t)
+	mockDynamoClient := mockDynamo.NewDynamoClienter(t)
 
-	// Mock the internal MongoDB client
-	mockMongoClient := mockMongo.NewMongoDB(t)
+	databaseStub := &db.DatabaseClient{
+		Client: mockDynamoClient,
+		Table:  "SwipeData",
+	}
 
-	s := NewServer(":8080", mockMetrics, mockPublisher, mockMongoClient)
+	s := NewServer(":8080", mockMetrics, mockPublisher, databaseStub)
 
 	tests := []struct {
 		name            string
@@ -113,45 +129,45 @@ func TestHandlersError(t *testing.T) {
 			name:   "bad swipe direction",
 			method: "POST",
 			url:    "/swipe/middle/",
-			body: models.SwipePayload{
+			body: models.SwipeRequest{
 				Swiper:  "1234",
 				Swipee:  "5678",
 				Comment: "asdf"},
 			expectedStatus:  http.StatusBadRequest,
-			expectedMessage: "not left or right\n",
+			expectedMessage: errorJson("not left or right"),
 		},
 		{
 			name:   "non-numeric swiper",
 			method: "POST",
 			url:    "/swipe/left/",
-			body: models.SwipePayload{
+			body: models.SwipeRequest{
 				Swiper:  "abc1234",
 				Swipee:  "5678",
 				Comment: "asdf"},
 			expectedStatus:  http.StatusBadRequest,
-			expectedMessage: "invalid swiper: abc1234\n",
+			expectedMessage: errorJson("invalid swiper: abc1234"),
 		},
 		{
 			name:   "non-numeric swipee",
 			method: "POST",
 			url:    "/swipe/left/",
-			body: models.SwipePayload{
+			body: models.SwipeRequest{
 				Swiper:  "1234",
 				Swipee:  "abc5678",
 				Comment: "asdf"},
 			expectedStatus:  http.StatusBadRequest,
-			expectedMessage: "invalid swipee: abc5678\n",
+			expectedMessage: errorJson("invalid swipee: abc5678"),
 		},
 		{
 			name:   "comment too long",
 			method: "POST",
 			url:    "/swipe/right/",
-			body: models.SwipePayload{
+			body: models.SwipeRequest{
 				Swiper:  "1234",
 				Swipee:  "5678",
 				Comment: strings.Repeat("a", 257)}, // 257 bytes long
 			expectedStatus:  http.StatusBadRequest,
-			expectedMessage: "comment too long\n",
+			expectedMessage: errorJson("comment too long"),
 		},
 	}
 
@@ -169,11 +185,70 @@ func TestHandlersError(t *testing.T) {
 
 			resp := rr.Result()
 
-			respBody, _ := io.ReadAll(resp.Body)
-			message := string(respBody)
+			body, _ := io.ReadAll(resp.Body)
+			message := string(body)
 
 			assert.Equal(t, tc.expectedStatus, resp.StatusCode)
 			assert.Equal(t, tc.expectedMessage, message)
 		})
 	}
+}
+
+func TestGetUserStatsHandler(t *testing.T) {
+	mockMetrics := mockMetrics.NewMetrics(t)
+	mockPublisher := mockPublisher.NewPublisher(t)
+
+	wantItem := &models.DynamoUserStats{
+		UserId:      1234,
+		NumLikes:    11,
+		NumDislikes: 22,
+		MatchList:   []int{1001, 1002, 1003},
+	}
+	mockDynamoClient := customMockDynamoClient(t, wantItem)
+
+	databaseStub := &db.DatabaseClient{
+		Client: mockDynamoClient,
+		Table:  "SwipeData",
+	}
+
+	s := NewServer(":8080", mockMetrics, mockPublisher, databaseStub)
+	req, _ := http.NewRequest("GET", "/stats/1234/", nil)
+	rr := httptest.NewRecorder()
+	s.Handler.ServeHTTP(rr, req)
+	resp := rr.Result()
+
+	assert.Equal(t, 200, resp.StatusCode)
+
+	var stat models.UserStats
+	body, _ := io.ReadAll(resp.Body)
+	_ = json.Unmarshal(body, &stat)
+	assert.Equal(t, 11, stat.NumLikes)
+	assert.Equal(t, 22, stat.NumDislikes)
+}
+
+// Convert a message to an error json with a newline
+func errorJson(message string) string {
+	encoded, _ := json.Marshal(
+		&models.ErrorResponse{
+			Message: message,
+		})
+	return fmt.Sprintf("%s\n", encoded)
+}
+
+func customMockDynamoClient(t *testing.T, wantItem *models.DynamoUserStats) *mockDynamo.DynamoClienter {
+	mockDynamoClient := mockDynamo.NewDynamoClienter(t)
+
+	av, _ := attributevalue.MarshalMap(wantItem)
+
+	output := &dynamodb.GetItemOutput{
+		Item: av,
+	}
+
+	mockDynamoClient.EXPECT().GetItem(
+		mock.MatchedBy(func(ctx context.Context) bool { return true }),
+		mock.AnythingOfType("*dynamodb.GetItemInput"),
+		mock.AnythingOfType("string")).Return(output, nil)
+
+	return mockDynamoClient
+
 }
