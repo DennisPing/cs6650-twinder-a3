@@ -16,6 +16,8 @@ docker pull mushufeels/consumer:latest
 touch ~/consumer.env
 echo "RABBITMQ_HOST={ip_address}" >> ~/consumer.env
 echo "LOG_LEVEL=warn" >> ~/consumer.env
+echo "AWS_ACCESS_KEY_ID={KEY_ID}" >> ~/consumer.env
+echo "AWS_SECRET_ACCESS_KEY={ACCESS_KEY}" >> ~/consumer.env
 ```
 
 ## Run container

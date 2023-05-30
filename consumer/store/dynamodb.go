@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/DennisPing/cs6650-twinder-a3/lib/logger"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
@@ -45,7 +44,6 @@ func NewDatabaseClient() (*DatabaseClient, error) {
 
 // Update a user's stats. If userId doesn't exist, then a new entry is created
 func (d *DatabaseClient) UpdateUserStats(ctx context.Context, userId, swipee int, swipeDir string) error {
-	logger.Debug().Msg("Hello from UpdateUserStats")
 	var update expression.UpdateBuilder
 	switch swipeDir {
 	case "right":
@@ -67,7 +65,6 @@ func (d *DatabaseClient) UpdateUserStats(ctx context.Context, userId, swipee int
 	if err != nil {
 		return fmt.Errorf("failed to build expression: %w", err)
 	}
-	logger.Debug().Msg("Built expression")
 
 	// Execute the UpdateItem operation
 	_, err = d.Client.UpdateItem(ctx, &dynamodb.UpdateItemInput{
@@ -83,6 +80,5 @@ func (d *DatabaseClient) UpdateUserStats(ctx context.Context, userId, swipee int
 	if err != nil {
 		return fmt.Errorf("failed to update item: %w", err)
 	}
-	logger.Debug().Msg("Completed UpdateUserStats")
 	return nil
 }
