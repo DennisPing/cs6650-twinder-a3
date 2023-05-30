@@ -13,24 +13,15 @@ import (
 	"github.com/wagslane/go-rabbitmq"
 )
 
-// Init a new RabbitMQ connection with the RabbitMQ host.
-func NewRmqConn() (*rabbitmq.Conn, error) {
-	host := os.Getenv("RABBITMQ_HOST")
-
-	if host == "" {
-		logger.Fatal().Msg("you forgot to set the RABBITMQ_HOST environment variable")
-	}
-
-	// Create a new connection to rabbitmq
-	return rabbitmq.NewConn(
-		fmt.Sprintf("amqp://%s:%s@%s:5672", "guest", "guest", host),
-		rabbitmq.WithConnectionOptionsLogging,
-	)
+// A rabbitmq consumer + dynamodb client
+type ConsumerClient struct {
+	Conn     *rabbitmq.Conn
+	Consumer *rabbitmq.Consumer
+	Store    *store.DatabaseClient
 }
 
-// Start the RabbitMQ consumer. It parses the message and adds a new UserStat into the kv store.
-func StartRmqConsumer(conn *rabbitmq.Conn, kvStore *store.DatabaseClient) (*rabbitmq.Consumer, error) {
-	return rabbitmq.NewConsumer(
+func NewConsumerClient(conn *rabbitmq.Conn, store *store.DatabaseClient) (*ConsumerClient, error) {
+	consumer, err := rabbitmq.NewConsumer(
 		conn,
 		func(d rabbitmq.Delivery) rabbitmq.Action {
 			logger.Debug().Msg(string(d.Body))
@@ -44,7 +35,7 @@ func StartRmqConsumer(conn *rabbitmq.Conn, kvStore *store.DatabaseClient) (*rabb
 
 			userId, _ := strconv.Atoi(reqBody.Swiper)
 			swipee, _ := strconv.Atoi(reqBody.Swipee)
-			kvStore.UpdateUserStats(context.Background(), userId, swipee, reqBody.Direction)
+			store.UpdateUserStats(context.Background(), userId, swipee, reqBody.Direction)
 			return rabbitmq.Ack
 		},
 		"",
@@ -56,5 +47,34 @@ func StartRmqConsumer(conn *rabbitmq.Conn, kvStore *store.DatabaseClient) (*rabb
 		rabbitmq.WithConsumerOptionsQOSPrefetch(128),
 		rabbitmq.WithConsumerOptionsConcurrency(4),
 		rabbitmq.WithConsumerOptionsQueueAutoDelete, // Auto delete the queue upon disconnect
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create rabbitmq consumer: %w", err)
+	}
+	return &ConsumerClient{
+		Conn:     conn,
+		Consumer: consumer,
+		Store:    store,
+	}, nil
+}
+
+// Close the rabbitmq consumer and the underlying TCP connection
+func (cc *ConsumerClient) Close() {
+	cc.Consumer.Close()
+	cc.Conn.Close()
+}
+
+// Init a new RabbitMQ connection with the RabbitMQ host.
+func NewRmqConn() (*rabbitmq.Conn, error) {
+	host := os.Getenv("RABBITMQ_HOST")
+
+	if host == "" {
+		logger.Fatal().Msg("you forgot to set the RABBITMQ_HOST environment variable")
+	}
+
+	// Create a new connection to rabbitmq
+	return rabbitmq.NewConn(
+		fmt.Sprintf("amqp://%s:%s@%s:5672", "guest", "guest", host),
+		rabbitmq.WithConnectionOptionsLogging,
 	)
 }

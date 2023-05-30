@@ -16,17 +16,16 @@ func main() {
 		logger.Fatal().Err(err).Msg("unable to connect to DynamoDB")
 	}
 
-	rmqConn, err := rmqconsumer.NewRmqConn()
+	conn, err := rmqconsumer.NewRmqConn()
 	if err != nil {
 		logger.Fatal().Err(err).Msg("unable to make rabbitmq connection")
 	}
-	defer rmqConn.Close()
 
-	consumer, err := rmqconsumer.StartRmqConsumer(rmqConn, store)
+	cc, err := rmqconsumer.NewConsumerClient(conn, store)
 	if err != nil {
 		logger.Fatal().Err(err)
 	}
-	defer consumer.Close()
+	defer cc.Close()
 
 	// Set up a signal handler for graceful shutdown
 	quit := make(chan os.Signal, 1)
