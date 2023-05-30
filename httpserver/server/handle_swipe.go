@@ -45,10 +45,10 @@ func (s *Server) PostSwipe(w http.ResponseWriter, r *http.Request) {
 	// Always return a response back to client since this is asynchronous, don't let them know about RabbitMQ
 	switch leftorright {
 	case "left":
-		// writeStatusResponse(w, http.StatusCreated)
+		writeStatusResponse(w, r.Method, http.StatusCreated)
 		s.metrics.IncrementThroughput()
 	case "right":
-		// writeStatusResponse(w, http.StatusCreated)
+		writeStatusResponse(w, r.Method, http.StatusCreated)
 		s.metrics.IncrementThroughput()
 	default:
 		writeErrorResponse(w, r.Method, http.StatusBadRequest, "not left or right")
@@ -59,15 +59,15 @@ func (s *Server) PostSwipe(w http.ResponseWriter, r *http.Request) {
 	reqBody.Direction = leftorright
 
 	// TODO: Delete later
-	userId, _ := strconv.Atoi(reqBody.Swiper)
-	swipee, _ := strconv.Atoi(reqBody.Swipee)
+	// userId, _ := strconv.Atoi(reqBody.Swiper)
+	// swipee, _ := strconv.Atoi(reqBody.Swipee)
 
-	err = s.db.UpdateUserStats(r.Context(), userId, swipee, leftorright)
-	if err != nil {
-		writeErrorResponse(w, r.Method, http.StatusInternalServerError, err.Error())
-	} else {
-		writeStatusResponse(w, r.Method, http.StatusCreated)
-	}
+	// err = s.store.UpdateUserStats(r.Context(), userId, swipee, leftorright)
+	// if err != nil {
+	// 	writeErrorResponse(w, r.Method, http.StatusInternalServerError, err.Error())
+	// } else {
+	// 	writeStatusResponse(w, r.Method, http.StatusCreated)
+	// }
 
 	// Publish the message
 	if err = s.PublishToRmq(reqBody); err != nil {

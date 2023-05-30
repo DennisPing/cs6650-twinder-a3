@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/DennisPing/cs6650-twinder-a3/httpserver/db"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/metrics"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/rmqproducer"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/server"
+	"github.com/DennisPing/cs6650-twinder-a3/httpserver/store"
 	"github.com/DennisPing/cs6650-twinder-a3/lib/logger"
 )
 
@@ -40,7 +40,7 @@ func main() {
 	defer publisher.Close()
 
 	// Initialize database client
-	dbClient, err := db.NewDatabaseClient()
+	dbClient, err := store.NewDatabaseClient()
 	if err != nil {
 		logger.Fatal().Msgf("unable to connect to DynamoDB: %v", err)
 	}

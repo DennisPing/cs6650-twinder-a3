@@ -1,4 +1,4 @@
-package db
+package store
 
 import (
 	"context"
@@ -108,7 +108,10 @@ func (d *DatabaseClient) UpdateUserStats(ctx context.Context, userId, swipee int
 		UpdateExpression:          expr.Update(),
 		ReturnValues:              types.ReturnValueNone,
 	})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to update item: %w", err)
+	}
+	return nil
 }
 
 // Helper method to get DynamoDB item

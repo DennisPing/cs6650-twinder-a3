@@ -11,10 +11,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/DennisPing/cs6650-twinder-a3/httpserver/db"
-	mockDynamo "github.com/DennisPing/cs6650-twinder-a3/httpserver/db/mocks"
 	mockMetrics "github.com/DennisPing/cs6650-twinder-a3/httpserver/metrics/mocks"
 	mockPublisher "github.com/DennisPing/cs6650-twinder-a3/httpserver/rmqproducer/mocks"
+	"github.com/DennisPing/cs6650-twinder-a3/httpserver/store"
+	mockDynamo "github.com/DennisPing/cs6650-twinder-a3/httpserver/store/mocks"
 	"github.com/DennisPing/cs6650-twinder-a3/lib/models"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -44,7 +44,7 @@ func TestPostSwipe(t *testing.T) {
 		mock.AnythingOfType("string")).
 		Return(nil, nil)
 
-	databaseStub := &db.DatabaseClient{
+	databaseStub := &store.DatabaseClient{
 		Client: mockDynamoClient,
 		Table:  "SwipeData",
 	}
@@ -112,7 +112,7 @@ func TestPostSwipeError(t *testing.T) {
 	mockPublisher := mockPublisher.NewPublisher(t)
 	mockDynamoClient := mockDynamo.NewDynamoClienter(t)
 
-	databaseStub := &db.DatabaseClient{
+	databaseStub := &store.DatabaseClient{
 		Client: mockDynamoClient,
 		Table:  "SwipeData",
 	}
@@ -208,7 +208,7 @@ func TestGetUserStatsHandler(t *testing.T) {
 	}
 	mockDynamoClient := customMockDynamoClient(t, wantItem)
 
-	databaseStub := &db.DatabaseClient{
+	databaseStub := &store.DatabaseClient{
 		Client: mockDynamoClient,
 		Table:  "SwipeData",
 	}

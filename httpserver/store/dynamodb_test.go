@@ -1,11 +1,11 @@
-package db
+package store
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	"github.com/DennisPing/cs6650-twinder-a3/httpserver/db/mocks"
+	"github.com/DennisPing/cs6650-twinder-a3/httpserver/store/mocks"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/stretchr/testify/assert"
@@ -153,7 +153,7 @@ func TestUpdateUserStatsError(t *testing.T) {
 			swipee:            5678,
 			swipeDir:          "right",
 			mockInternalError: errors.New("aws died"),
-			expectedErrorMsg:  "aws died",
+			expectedErrorMsg:  "failed to update item: aws died",
 		},
 	}
 	for _, tc := range tests {

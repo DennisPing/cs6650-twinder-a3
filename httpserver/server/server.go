@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/DennisPing/cs6650-twinder-a3/httpserver/db"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/metrics"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/rmqproducer"
+	"github.com/DennisPing/cs6650-twinder-a3/httpserver/store"
 	"github.com/DennisPing/cs6650-twinder-a3/lib/logger"
 	"github.com/DennisPing/cs6650-twinder-a3/lib/models"
 	"github.com/go-chi/chi"
@@ -19,13 +19,13 @@ type Server struct {
 	http.Server
 	metrics metrics.Metrics       // interface
 	pub     rmqproducer.Publisher // interface
-	db      *db.DatabaseClient
+	store   *store.DatabaseClient
 	ticker  *time.Ticker
 	cancel  context.CancelFunc
 }
 
 // Create a new server which has an HTTP server, Metrics client, RabbitMQ publisher, and Database client
-func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publisher, dbClient *db.DatabaseClient) *Server {
+func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publisher, dbClient *store.DatabaseClient) *Server {
 	chiRouter := chi.NewRouter()
 
 	// Build the server
@@ -36,7 +36,7 @@ func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publi
 		},
 		metrics: metrics,
 		pub:     publisher,
-		db:      dbClient,
+		store:   dbClient,
 	}
 	chiRouter.Get("/health", s.GetHome)
 	chiRouter.Post("/swipe/{leftorright}/", s.PostSwipe)
