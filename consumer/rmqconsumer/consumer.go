@@ -1,9 +1,11 @@
 package rmqconsumer
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/DennisPing/cs6650-twinder-a3/consumer/store"
 	"github.com/DennisPing/cs6650-twinder-a3/lib/logger"
@@ -27,20 +29,22 @@ func NewRmqConn() (*rabbitmq.Conn, error) {
 }
 
 // Start the RabbitMQ consumer. It parses the message and adds a new UserStat into the kv store.
-func StartRmqConsumer(conn *rabbitmq.Conn, kvStore *store.SimpleStore) (*rabbitmq.Consumer, error) {
+func StartRmqConsumer(conn *rabbitmq.Conn, kvStore *store.DatabaseClient) (*rabbitmq.Consumer, error) {
 	return rabbitmq.NewConsumer(
 		conn,
 		func(d rabbitmq.Delivery) rabbitmq.Action {
 			logger.Debug().Msg(string(d.Body))
 
-			var reqBody models.SwipePayload
+			var reqBody models.SwipeRequest
 			err := json.Unmarshal(d.Body, &reqBody)
 			if err != nil {
 				logger.Error().Msgf("bad request: %v", err)
 				return rabbitmq.NackDiscard
 			}
 
-			kvStore.Add(reqBody.Swiper, reqBody.Swipee, reqBody.Direction)
+			userId, _ := strconv.Atoi(reqBody.Swiper)
+			swipee, _ := strconv.Atoi(reqBody.Swipee)
+			kvStore.UpdateUserStats(context.Background(), userId, swipee, reqBody.Direction)
 			return rabbitmq.Ack
 		},
 		"",

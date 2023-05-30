@@ -19,3 +19,9 @@ LICENSE
 
 # Ignore OS generated files
 .DS_Store
+
+# Ignore mocks
+**/mocks/
+
+## Ignore _test.go files
+*_test.go
