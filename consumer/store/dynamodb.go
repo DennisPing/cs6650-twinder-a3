@@ -29,9 +29,6 @@ func NewDatabaseClient() (*DatabaseClient, error) {
 	cfg, err := config.LoadDefaultConfig(
 		context.Background(),
 		config.WithRegion("us-east-2"),
-		config.WithRetryer(func() aws.Retryer {
-			return aws.NopRetryer{} // Don't retry errors
-		}),
 	)
 	if err != nil {
 		return nil, err
