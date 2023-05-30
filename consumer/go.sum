@@ -1,5 +1,5 @@
-github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230529220520-7ebbb80ddc37 h1:PHBBmKvy5k5RcEt7QB2w34qK9NSQtXNe4gvOKRWkfxk=
-github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230529220520-7ebbb80ddc37/go.mod h1:fZ78tvbCuNoaFgyQQ0aHnwDu38cvxM1zdHe+f5Jk1E0=
+github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230530010123-05717362583f h1:E1rFJhRrG30D/eNgVC1hECm8+lrmdqsTQwgdVjxWvBs=
+github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230530010123-05717362583f/go.mod h1:fZ78tvbCuNoaFgyQQ0aHnwDu38cvxM1zdHe+f5Jk1E0=
 github.com/aws/aws-sdk-go-v2 v1.18.0 h1:882kkTpSFhdgYRKVZ/VCgf7sd0ru57p2JCxz4/oN5RY=
 github.com/aws/aws-sdk-go-v2 v1.18.0/go.mod h1:uzbQtefpm44goOPmdKyAlXSNcwlRgF3ePWVW6EtJvvw=
 github.com/aws/aws-sdk-go-v2/config v1.18.25 h1:JuYyZcnMPBiFqn87L2cRppo+rNwgah6YwD3VuyvaW6Q=

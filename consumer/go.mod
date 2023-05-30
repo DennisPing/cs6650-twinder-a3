@@ -3,7 +3,7 @@ module github.com/DennisPing/cs6650-twinder-a3/consumer
 go 1.19
 
 require (
-	github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230529220520-7ebbb80ddc37
+	github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230530010123-05717362583f
 	github.com/aws/aws-sdk-go-v2 v1.18.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.25
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression v1.4.52
