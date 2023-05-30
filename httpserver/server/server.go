@@ -81,7 +81,7 @@ func (s *Server) Stop() {
 
 // Publish a message out to the RabbitMQ exchange
 func (s *Server) PublishToRmq(payload interface{}) error {
-	logger.Debug().Interface("message", payload).Send()
+	logger.Debug().Interface("payload", payload).Msg("publish")
 	respBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -96,7 +96,7 @@ func (s *Server) PublishToRmq(payload interface{}) error {
 
 // Send a simple HTTP response with no payload
 func writeStatusResponse(w http.ResponseWriter, method string, statusCode int) {
-	logger.Debug().Str("method", method).Int("code", statusCode)
+	logger.Debug().Str("method", method).Int("code", statusCode).Send()
 	w.WriteHeader(statusCode)
 }
 
