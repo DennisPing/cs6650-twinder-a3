@@ -38,11 +38,6 @@ func TestPostSwipe(t *testing.T) {
 
 	// Mock the internal Database
 	mockDynamoClient := mockDynamo.NewDynamoClienter(t)
-	mockDynamoClient.EXPECT().UpdateItem(
-		mock.MatchedBy(func(ctx context.Context) bool { return true }),
-		mock.AnythingOfType("*dynamodb.UpdateItemInput"),
-		mock.AnythingOfType("string")).
-		Return(nil, nil)
 
 	databaseStub := &store.DatabaseClient{
 		Client: mockDynamoClient,
@@ -93,10 +88,8 @@ func TestPostSwipe(t *testing.T) {
 			bodyReader := bytes.NewReader(bodyBytes)
 			req, _ := http.NewRequest(tc.method, tc.url, bodyReader)
 
-			// Create a ResponseRecorder to record the response
 			rr := httptest.NewRecorder()
 
-			// Serve the request
 			s.Handler.ServeHTTP(rr, req)
 
 			resp := rr.Result()
@@ -136,7 +129,7 @@ func TestPostSwipeError(t *testing.T) {
 				Swipee:  "5678",
 				Comment: "asdf"},
 			expectedStatus:  http.StatusBadRequest,
-			expectedMessage: errorJson("not left or right"),
+			expectedMessage: errorJson("not left or right: middle"),
 		},
 		{
 			name:   "non-numeric swiper",
@@ -179,14 +172,11 @@ func TestPostSwipeError(t *testing.T) {
 			bodyReader := bytes.NewReader(bodyBytes)
 			req, _ := http.NewRequest(tc.method, tc.url, bodyReader)
 
-			// Create a ResponseRecorder to record the response
 			rr := httptest.NewRecorder()
 
-			// Serve the request
 			s.Handler.ServeHTTP(rr, req)
 
 			resp := rr.Result()
-
 			body, _ := io.ReadAll(resp.Body)
 			message := string(body)
 
@@ -252,5 +242,4 @@ func customMockDynamoClient(t *testing.T, wantItem *models.DynamoUserStats) *moc
 		mock.AnythingOfType("string")).Return(output, nil)
 
 	return mockDynamoClient
-
 }
