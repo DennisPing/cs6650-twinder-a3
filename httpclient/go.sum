@@ -1,5 +1,5 @@
-github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230522231002-a04f762c2468 h1:wMo3is7+ypiNrOWc8AzBV7+P5vZEfknZNzrnx61OVeE=
-github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230522231002-a04f762c2468/go.mod h1:+4aIFCXUaCsuiZO2IjTioKBiC9Upn59xxJIz94dr1GE=
+github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230530040243-88529c68de53 h1:/NdrbOaEXiOWi5p4n8xEqvenToRrin5/mOVi8/2BzmU=
+github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230530040243-88529c68de53/go.mod h1:fZ78tvbCuNoaFgyQQ0aHnwDu38cvxM1zdHe+f5Jk1E0=
 github.com/coreos/go-systemd/v22 v22.5.0/go.mod h1:Y58oyj3AT4RCenI/lSvhwexgC+NSVTIJ3seZv2GcEnc=
 github.com/godbus/dbus/v5 v5.0.4/go.mod h1:xhWf0FNVPg57R7Z0UbKHbJfkEywrmjJnf7w5xrFpKfA=
 github.com/mattn/go-colorable v0.1.12/go.mod h1:u5H1YNBxpqRaxsYJYSkiCWKzEfiAb1Gb520KVy5xxl4=

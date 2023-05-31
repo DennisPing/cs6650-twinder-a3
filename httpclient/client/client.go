@@ -66,6 +66,16 @@ func (client *ApiClient) SwipeLeftOrRight(ctx context.Context, direction string)
 	}
 }
 
+// GET /stats/{userId}/
+func (client *ApiClient) GetUserStats(ctx context.Context, userId int) models.UserStats {
+	return models.UserStats{}
+}
+
+// GET /matches/{userId}/
+func (client *ApiClient) GetMatches(ctx context.Context, userId int) models.UserMatches {
+	return models.UserMatches{}
+}
+
 // Create HTTP request with a timeout context
 func (client *ApiClient) createRequest(ctx context.Context, method, url string, data interface{}) (*http.Request, error) {
 	body, err := json.Marshal(data)
