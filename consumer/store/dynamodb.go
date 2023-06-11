@@ -75,7 +75,21 @@ func (d *DatabaseClient) UpdateUserStats(ctx context.Context, userId, swipee int
 		ReturnValues:              types.ReturnValueNone,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to update item: %w", err)
+		return fmt.Errorf("UpdateItem failed: %w", err)
 	}
+
+	// if err != nil {
+	// 	// https://github.com/golang/go/issues/37625#issuecomment-594033043
+	// 	var opErr *smithy.OperationError
+	// 	if errors.As(err, &opErr) {
+	// 		switch opErr.Unwrap().(type) {
+	// 		case *types.ProvisionedThroughputExceededException:
+	// 			return fmt.Errorf("update rate too high: %w", err)
+	// 		default:
+	// 			return fmt.Errorf("operation error: %w", err)
+	// 		}
+	// 	}
+	// 	return fmt.Errorf("unexpected error: %w", err)
+	// }
 	return nil
 }

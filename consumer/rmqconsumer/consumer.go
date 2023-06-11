@@ -35,7 +35,8 @@ func NewConsumerClient(conn *rabbitmq.Conn, store *store.DatabaseClient) (*Consu
 
 			userId, _ := strconv.Atoi(reqBody.Swiper)
 			swipee, _ := strconv.Atoi(reqBody.Swipee)
-			if err = store.UpdateUserStats(context.Background(), userId, swipee, reqBody.Direction); err != nil {
+			err = store.UpdateUserStats(context.Background(), userId, swipee, reqBody.Direction)
+			if err != nil {
 				logger.Error().Err(err).Interface("SwipeRequest", reqBody).Send()
 			}
 			return rabbitmq.Ack
