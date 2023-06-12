@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/metrics"
@@ -38,7 +39,7 @@ func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publi
 		pub:     publisher,
 		store:   dbClient,
 	}
-	chiRouter.Get("/health", s.GetHome)
+	chiRouter.Get("/health", s.GetHealth)
 	chiRouter.Post("/swipe/{leftorright}/", s.PostSwipe)
 	chiRouter.Get("/matches/{userId}/", s.GetMatches)
 	chiRouter.Get("/stats/{userId}/", s.GetStats)
@@ -103,20 +104,28 @@ func writeStatusResponse(w http.ResponseWriter, method string, statusCode int) {
 // Send an HTTP response with JSON payload
 func writeJsonResponse(w http.ResponseWriter, method string, statusCode int, payload interface{}) {
 	logger.Debug().Str("method", method).Interface("payload", payload).Send()
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	if err := json.NewEncoder(w).Encode(payload); err != nil {
-		writeErrorResponse(w, method, http.StatusInternalServerError, "failed to encode JSON response")
+	respBytes, err := json.Marshal(payload)
+	if err != nil {
+		panic(err)
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", strconv.Itoa(len(respBytes)))
+	w.WriteHeader(statusCode)
+	w.Write(respBytes)
 }
 
 // Send an HTTP response error with a message
 func writeErrorResponse(w http.ResponseWriter, method string, statusCode int, message string) {
 	logger.Warn().Str("method", method).Int("code", statusCode).Msg(message)
-	errorResp := &models.ErrorResponse{
-		Message: message,
+	errBytes, err := json.Marshal(
+		&models.ErrorResponse{
+			Message: message,
+		})
+	if err != nil {
+		panic(err)
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", strconv.Itoa(len(errBytes)))
 	w.WriteHeader(statusCode)
-	_ = json.NewEncoder(w).Encode(errorResp)
+	w.Write(errBytes)
 }

@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 
@@ -15,27 +14,26 @@ import (
 func (s *Server) PostSwipe(w http.ResponseWriter, r *http.Request) {
 	leftorright := chi.URLParam(r, "leftorright")
 
-	body, err := io.ReadAll(r.Body)
+	var sr models.SwipeRequest
+	err := json.NewDecoder(r.Body).Decode(&sr)
 	if err != nil {
 		writeErrorResponse(w, r.Method, http.StatusBadRequest, "bad request")
 		return
 	}
 
-	var reqBody models.SwipeRequest
-	err = json.Unmarshal(body, &reqBody)
 	if err != nil {
 		writeErrorResponse(w, r.Method, http.StatusBadRequest, "corrupt request body")
 		return
 	}
-	if _, err := strconv.Atoi(reqBody.Swiper); err != nil {
-		writeErrorResponse(w, r.Method, http.StatusBadRequest, fmt.Sprintf("invalid swiper: %s", reqBody.Swiper))
+	if _, err := strconv.Atoi(sr.Swiper); err != nil {
+		writeErrorResponse(w, r.Method, http.StatusBadRequest, fmt.Sprintf("invalid swiper: %s", sr.Swiper))
 		return
 	}
-	if _, err := strconv.Atoi(reqBody.Swipee); err != nil {
-		writeErrorResponse(w, r.Method, http.StatusBadRequest, fmt.Sprintf("invalid swipee: %s", reqBody.Swipee))
+	if _, err := strconv.Atoi(sr.Swipee); err != nil {
+		writeErrorResponse(w, r.Method, http.StatusBadRequest, fmt.Sprintf("invalid swipee: %s", sr.Swipee))
 		return
 	}
-	if len(reqBody.Comment) > 256 {
+	if len(sr.Comment) > 256 {
 		writeErrorResponse(w, r.Method, http.StatusBadRequest, "comment too long")
 		return
 	}
@@ -45,10 +43,10 @@ func (s *Server) PostSwipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Append the direction to the request body
-	reqBody.Direction = leftorright
+	sr.Direction = leftorright
 
 	// Publish the message
-	if err = s.PublishToRmq(reqBody); err != nil {
+	if err = s.PublishToRmq(sr); err != nil {
 		writeErrorResponse(w, r.Method, http.StatusInternalServerError, "failed to publish message")
 		return
 	}

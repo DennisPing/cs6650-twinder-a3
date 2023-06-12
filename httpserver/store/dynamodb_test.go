@@ -14,30 +14,51 @@ import (
 
 // Get user stats happy path
 func TestGetUserStats(t *testing.T) {
-	ctx := context.Background()
-	mockDynamo := mocks.NewDynamoClienter(t)
 
-	mockDynamo.EXPECT().
-		GetItem(ctx, mock.Anything, mock.Anything).
-		Return(&dynamodb.GetItemOutput{
-			Item: map[string]types.AttributeValue{
-				"numLikes":    &types.AttributeValueMemberN{Value: "11"},
-				"numDislikes": &types.AttributeValueMemberN{Value: "22"},
+	tests := []struct {
+		name        string
+		mockOutItem *dynamodb.GetItemOutput // DynamoDB always returns an output
+		found       bool
+	}{
+		{
+			name: "item found",
+			mockOutItem: &dynamodb.GetItemOutput{
+				Item: map[string]types.AttributeValue{
+					"numLikes":    &types.AttributeValueMemberN{Value: "11"},
+					"numDislikes": &types.AttributeValueMemberN{Value: "22"},
+				},
 			},
-		}, nil)
-
-	databaseClient := DatabaseClient{
-		Client: mockDynamo,
-		Table:  "testTable",
+			found: true,
+		},
+		{
+			name:        "item not found but life goes on",
+			mockOutItem: &dynamodb.GetItemOutput{},
+			found:       false,
+		},
 	}
 
-	stats, err := databaseClient.GetUserStats(ctx, 1234)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			mockDynamo := mocks.NewDynamoClienter(t)
 
-	mockDynamo.AssertExpectations(t)
+			mockDynamo.EXPECT().GetItem(ctx, mock.Anything, mock.Anything).Return(tc.mockOutItem, nil)
+			databaseClient := DatabaseClient{
+				Client: mockDynamo,
+				Table:  "testTable",
+			}
+			found, stats, err := databaseClient.GetUserStats(ctx, 1234)
 
-	assert.NoError(t, err)
-	assert.Equal(t, 11, stats.NumLikes)
-	assert.Equal(t, 22, stats.NumDislikes)
+			assert.NoError(t, err)
+			assert.Equal(t, tc.found, found)
+
+			if found {
+				assert.NotNil(t, stats)
+				assert.Equal(t, 11, stats.NumLikes)
+				assert.Equal(t, 22, stats.NumDislikes)
+			}
+		})
+	}
 }
 
 // Get user stats sad path
@@ -45,21 +66,15 @@ func TestGetUserStatsError(t *testing.T) {
 	userId := 1234
 	tests := []struct {
 		name              string
-		mockItem          *dynamodb.GetItemOutput
+		mockOutItem       *dynamodb.GetItemOutput
 		mockInternalError error
 		expectedErrorMsg  string // the high level error message
 	}{
 		{
 			name:              "dynamo internal error",
-			mockItem:          nil,
+			mockOutItem:       nil,
 			mockInternalError: errors.New("aws died"),
 			expectedErrorMsg:  "failed to get item: aws died",
-		},
-		{
-			name:              "no error but item not found",
-			mockItem:          &dynamodb.GetItemOutput{},
-			mockInternalError: nil,
-			expectedErrorMsg:  "userId not found: 1234",
 		},
 	}
 
@@ -70,24 +85,18 @@ func TestGetUserStatsError(t *testing.T) {
 
 			mockDynamo.EXPECT().
 				GetItem(ctx, mock.Anything, mock.Anything).
-				Return(tc.mockItem, tc.mockInternalError)
+				Return(tc.mockOutItem, tc.mockInternalError)
 
 			databaseClient := DatabaseClient{
 				Client: mockDynamo,
 				Table:  "testTable",
 			}
 
-			_, err := databaseClient.GetUserStats(ctx, userId)
-
-			mockDynamo.AssertExpectations(t)
+			found, _, err := databaseClient.GetUserStats(ctx, userId)
 
 			assert.Error(t, err) // check for a high level error
 			assert.Equal(t, tc.expectedErrorMsg, err.Error())
-
-			// Everything works, but user not found
-			if tc.mockInternalError == nil {
-				assert.Nil(t, tc.mockItem.Item)
-			}
+			assert.False(t, found)
 		})
 	}
 }
@@ -130,8 +139,6 @@ func TestUpdateUserStats(t *testing.T) {
 
 			err := databaseClient.UpdateUserStats(ctx, tc.userId, tc.swipee, tc.swipeDir)
 
-			mockDynamoClient.AssertExpectations(t)
-
 			assert.NoError(t, err)
 		})
 	}
@@ -171,8 +178,6 @@ func TestUpdateUserStatsError(t *testing.T) {
 			}
 
 			err := databaseClient.UpdateUserStats(ctx, tc.userId, tc.swipee, tc.swipeDir)
-
-			mockDynamoClient.AssertExpectations(t)
 
 			assert.Error(t, err)
 			assert.Equal(t, tc.expectedErrorMsg, err.Error())

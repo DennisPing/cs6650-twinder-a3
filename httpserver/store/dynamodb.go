@@ -42,32 +42,39 @@ func NewDatabaseClient() (*DatabaseClient, error) {
 	}, nil
 }
 
-// Get the user stats of a userId
-func (d *DatabaseClient) GetUserStats(ctx context.Context, userId int) (*models.UserStats, error) {
+// Get user likes and dislikes. Returns found, user stats, and error.
+func (d *DatabaseClient) GetUserStats(ctx context.Context, userId int) (bool, models.UserStats, error) {
 	item, err := d.getItem(ctx, userId)
+	var userStats models.UserStats
 	if err != nil {
-		return nil, err
+		return false, userStats, err // some database error
 	}
 	if item != nil {
-		return &models.UserStats{
-			NumLikes:    item.NumLikes,
-			NumDislikes: item.NumDislikes,
-		}, nil
+		return true,
+			models.UserStats{
+				NumLikes:    item.NumLikes,
+				NumDislikes: item.NumDislikes,
+			},
+			nil
 	}
-	return nil, fmt.Errorf("userId not found: %d", userId)
+	return false, userStats, nil // not found
 }
 
-func (d *DatabaseClient) GetMatches(ctx context.Context, userId int) (*models.UserMatches, error) {
+// Get user matches list. Returns found, user matches, and error.
+func (d *DatabaseClient) GetMatches(ctx context.Context, userId int) (bool, models.UserMatches, error) {
 	item, err := d.getItem(ctx, userId)
+	var userMatches models.UserMatches
 	if err != nil {
-		return nil, err
+		return false, userMatches, err
 	}
 	if item != nil {
-		return &models.UserMatches{
-			MatchList: item.MatchList,
-		}, nil
+		return true,
+			models.UserMatches{
+				MatchList: item.MatchList,
+			},
+			nil
 	}
-	return nil, fmt.Errorf("userId not found: %d", userId)
+	return false, userMatches, nil // not found
 }
 
 // Update a user's stats. If userId doesn't exist, then a new entry is created
@@ -111,7 +118,7 @@ func (d *DatabaseClient) UpdateUserStats(ctx context.Context, userId, swipee int
 	return nil
 }
 
-// Helper method to get DynamoDB item
+// Internal method that gets the entire row from DynamoDB
 func (d *DatabaseClient) getItem(ctx context.Context, userId int) (*models.DynamoUserStats, error) {
 	resp, err := d.Client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: aws.String(d.Table),

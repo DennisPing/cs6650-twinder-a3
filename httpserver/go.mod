@@ -3,7 +3,7 @@ module github.com/DennisPing/cs6650-twinder-a3/httpserver
 go 1.19
 
 require (
-	github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230529013318-73e600fdd657
+	github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230531112400-ce4bcf72fe0c
 	github.com/aws/aws-sdk-go-v2 v1.18.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.25
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.10.25

@@ -17,9 +17,13 @@ func (s *Server) GetStats(w http.ResponseWriter, r *http.Request) {
 		writeErrorResponse(w, r.Method, http.StatusBadRequest, fmt.Sprintf("invalid userId: %s", userId))
 		return
 	}
-	userStat, err := s.store.GetUserStats(context.Background(), userIdInt)
+	found, userStat, err := s.store.GetUserStats(context.Background(), userIdInt)
 	if err != nil {
-		writeErrorResponse(w, r.Method, http.StatusBadRequest, err.Error())
+		writeErrorResponse(w, r.Method, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if !found {
+		writeErrorResponse(w, r.Method, http.StatusNotFound, fmt.Sprintf("userId not found: %s", userId))
 		return
 	}
 	writeJsonResponse(w, r.Method, http.StatusOK, userStat)
