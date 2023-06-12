@@ -3,7 +3,7 @@ module github.com/DennisPing/cs6650-twinder-a3/httpclient
 go 1.19
 
 require (
-	github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230530040243-88529c68de53
+	github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230531112400-ce4bcf72fe0c
 	github.com/montanaflynn/stats v0.7.1
 )
 

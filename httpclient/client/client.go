@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -18,23 +17,28 @@ import (
 
 // An api client that has a random number generator
 type ApiClient struct {
-	ServerUrl    string
-	HttpClient   *http.Client
-	Rng          *rand.Rand
-	SuccessCount uint64
-	ErrorCount   uint64
+	ServerUrl        string
+	HttpClient       *http.Client
+	Rng              *rand.Rand
+	GetSuccessCount  uint64
+	GetErrorCount    uint64
+	PostSuccessCount uint64
+	PostErrorCount   uint64
 }
 
 func NewApiClient(transport *http.Transport, serverUrl string) *ApiClient {
 	return &ApiClient{
-		ServerUrl:  serverUrl,
-		HttpClient: &http.Client{Transport: transport},
-		Rng:        rand.New(rand.NewSource(time.Now().UnixNano())),
+		ServerUrl: serverUrl,
+		HttpClient: &http.Client{
+			Timeout:   10 * time.Second,
+			Transport: transport,
+		},
+		Rng: rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
 }
 
 // POST /swipe/{leftorright}/
-func (client *ApiClient) SwipeLeftOrRight(ctx context.Context, direction string) {
+func (client *ApiClient) SwipeLeftOrRight(direction string) {
 	swipeRequest := models.SwipeRequest{
 		Swiper:  strconv.Itoa(datagen.RandInt(client.Rng, 1, 5000)),
 		Swipee:  strconv.Itoa(datagen.RandInt(client.Rng, 1, 1_000_000)),
@@ -42,49 +46,104 @@ func (client *ApiClient) SwipeLeftOrRight(ctx context.Context, direction string)
 	}
 	swipeEndpoint := fmt.Sprintf("%s/swipe/%s/", client.ServerUrl, direction)
 
-	req, err := client.createRequest(ctx, http.MethodPost, swipeEndpoint, swipeRequest)
+	req, err := client.newPostRequest(swipeEndpoint, swipeRequest)
 	if err != nil {
-		logger.Error().Msg(err.Error())
+		logger.Error().Err(err).Msg("failed to build POST request") // programmer error
 		return
 	}
 
 	resp, err := client.sendRequest(req, 5)
 	if err != nil {
-		client.ErrorCount += 1
-		logger.Error().Msgf("max retries hit: %v", err)
+		client.PostErrorCount += 1
+		logger.Error().Str("method", req.Method).Msgf("max retries hit: %v", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	// StatusCode should be 200 or 201, else log warn
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
-		client.SuccessCount += 1
-		logger.Debug().Msg(resp.Status)
+		client.PostSuccessCount += 1
+		logger.Debug().Str("method", req.Method).Msg(resp.Status)
 	} else {
-		client.ErrorCount += 1
-		logger.Warn().Msg(resp.Status)
+		client.PostErrorCount += 1
+		logger.Warn().Str("method", req.Method).Msg(resp.Status)
 	}
 }
 
 // GET /stats/{userId}/
-func (client *ApiClient) GetUserStats(ctx context.Context, userId int) models.UserStats {
-	return models.UserStats{}
+func (client *ApiClient) GetUserStats() {
+	userId := datagen.RandInt(client.Rng, 1, 5000)
+	userStatsEndpoint := fmt.Sprintf("%s/stats/%d/", client.ServerUrl, userId)
+
+	req, err := client.newGetRequest(userStatsEndpoint)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to build GET request") // programmer error
+		return
+	}
+	resp, err := client.sendRequest(req, 5)
+	if err != nil {
+		client.GetErrorCount += 1
+		logger.Error().Str("method", req.Method).Msgf("max retries hit: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// StatusCode should be 200 or 404, else log warn
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound {
+		client.GetSuccessCount += 1
+		logger.Debug().Str("method", req.Method).Msg(resp.Status)
+	} else {
+		client.GetErrorCount += 1
+		logger.Warn().Str("method", req.Method).Msg(resp.Status)
+	}
 }
 
 // GET /matches/{userId}/
-func (client *ApiClient) GetMatches(ctx context.Context, userId int) models.UserMatches {
-	return models.UserMatches{}
+func (client *ApiClient) GetMatches() {
+	userId := datagen.RandInt(client.Rng, 1, 5000)
+	matchesEndpoint := fmt.Sprintf("%s/matches/%d/", client.ServerUrl, userId)
+
+	req, err := client.newGetRequest(matchesEndpoint)
+	if err != nil {
+		logger.Error().Err(err).Msg("failed to build GET request") // programmer error
+		return
+	}
+	resp, err := client.sendRequest(req, 5)
+	if err != nil {
+		client.GetErrorCount += 1
+		logger.Error().Str("method", req.Method).Msgf("max retries hit: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	// StatusCode should be 200 or 404, else log warn
+	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound {
+		client.GetSuccessCount += 1
+		logger.Debug().Str("method", req.Method).Msg(resp.Status)
+	} else {
+		client.GetErrorCount += 1
+		logger.Warn().Str("method", req.Method).Msg(resp.Status)
+	}
 }
 
-// Create HTTP request with a timeout context
-func (client *ApiClient) createRequest(ctx context.Context, method, url string, data interface{}) (*http.Request, error) {
+// Create HTTP GET request
+func (client *ApiClient) newGetRequest(url string) (*http.Request, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
+// Create HTTP POST request
+func (client *ApiClient) newPostRequest(url string, data interface{}) (*http.Request, error) {
 	body, err := json.Marshal(data)
 	if err != nil {
 		return nil, err
 	}
 	reader := bytes.NewReader(body)
 
-	req, err := http.NewRequestWithContext(ctx, method, url, reader)
+	req, err := http.NewRequest(http.MethodPost, url, reader)
 	if err != nil {
 		return nil, err
 	}

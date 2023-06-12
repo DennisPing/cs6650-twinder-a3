@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	maxWorkers  = 50
+	maxWorkers  = 10
 	numRequests = 1000
 )
 
@@ -39,8 +39,6 @@ func main() {
 		logger.Fatal().Msg(http.ListenAndServe(addr, nil).Error())
 	}()
 
-	ctx := context.Background()
-
 	// Populate the task queue with tasks (token)
 	taskQueue := make(chan struct{}, numRequests)
 	for i := 0; i < numRequests; i++ {
@@ -51,18 +49,23 @@ func main() {
 	var wg sync.WaitGroup
 
 	responseTimes := make([][]time.Duration, maxWorkers)
+	fetchResponseTimes := make([]time.Duration, 0)
 
-	// Create a shared transport since we have concurrent clients
+	// Create a shared transport (1 TCP conn) since we have multiple clients for only 1 host
 	sharedTransport := &http.Transport{
-		MaxIdleConns:        maxWorkers,
-		MaxIdleConnsPerHost: maxWorkers,
+		MaxIdleConns:        maxWorkers + 1,
+		MaxIdleConnsPerHost: maxWorkers + 1,
 		IdleConnTimeout:     60 * time.Second,
 	}
 
+	// Spawn the worker pool
 	workerPool := make([]*client.ApiClient, maxWorkers)
 	for i := 0; i < maxWorkers; i++ {
 		workerPool[i] = client.NewApiClient(sharedTransport, serverURL)
 	}
+
+	// Init the fetch client with default transport
+	fetchClient := client.NewApiClient(sharedTransport, serverURL)
 
 	logger.Info().Msgf("Using %d goroutines", maxWorkers)
 	logger.Info().Msgf("Starting %d requests...", numRequests)
@@ -77,31 +80,57 @@ func main() {
 
 			// Do tasks until taskQueue is empty. Then all workers can go home.
 			for range taskQueue {
-				ctxWithTimeout, cancelCtx := context.WithTimeout(ctx, 10*time.Second)
 				direction := datagen.RandDirection(apiClient.Rng)
 				t0 := time.Now()
-				apiClient.SwipeLeftOrRight(ctxWithTimeout, direction) // The actual HTTP request
+				apiClient.SwipeLeftOrRight(direction) // The actual HTTP request
+				time.Sleep(500 * time.Millisecond)
 				t1 := time.Since(t0)
-				cancelCtx()
 				responseTimes[workerId] = append(responseTimes[workerId], t1) // Thread safe
 			}
 		}(i)
 	}
-	wg.Wait()
+
+	// Activate the fetch client
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop() // ticker should stop at ctx.Done() but use "defer" for edge cases
+
+		toggle := true
+		for {
+			select {
+			case <-ctx.Done(): // Quit
+				return
+			case <-ticker.C:
+				t0 := time.Now()
+				if toggle {
+					fetchClient.GetUserStats()
+				} else {
+					fetchClient.GetMatches()
+				}
+				t1 := time.Since(t0)
+				fetchResponseTimes = append(fetchResponseTimes, t1)
+				toggle = !toggle
+			}
+		}
+	}()
+
+	wg.Wait() // Wait for all workers to finish tasks
+
+	cancel() // Cancel the fetch client goroutine
 
 	duration := time.Since(startTime)
 
 	// Calculate metrics
-	var successCount uint64
-	var errorCount uint64
+	var postSuccessCount uint64
+	var postErrorCount uint64
 	for _, worker := range workerPool {
-		successCount += worker.SuccessCount
-		errorCount += worker.ErrorCount
+		postSuccessCount += worker.PostSuccessCount
+		postErrorCount += worker.PostErrorCount
 	}
-	throughput := float64(successCount) / duration.Seconds()
+	throughput := float64(postSuccessCount) / duration.Seconds()
 
-	logger.Info().Msgf("Success count: %d", successCount)
-	logger.Info().Msgf("Error count: %d", errorCount)
+	fmt.Println("Done!")
 	logger.Info().Msgf("Total run time: %v", duration)
 	logger.Info().Msgf("Throughput: %.2f req/sec", throughput)
 
@@ -112,12 +141,37 @@ func main() {
 			allResponseTimes = append(allResponseTimes, rtFloat)
 		}
 	}
+
 	mean, _ := stats.Mean(allResponseTimes)
 	median, _ := stats.Median(allResponseTimes)
 	p99, _ := stats.Percentile(allResponseTimes, 99)
 	min, _ := stats.Min(allResponseTimes)
 	max, _ := stats.Max(allResponseTimes)
 
+	fmt.Println("POST request client metrics")
+	logger.Info().Msgf("POST success count: %d", postSuccessCount)
+	logger.Info().Msgf("POST error count: %d", postErrorCount)
+	logger.Info().Msgf("Mean response time: %.2f ms", mean)
+	logger.Info().Msgf("Median response time: %.2f ms", median)
+	logger.Info().Msgf("P99 response time: %.2f ms", p99)
+	logger.Info().Msgf("Min response time: %.2f ms", min)
+	logger.Info().Msgf("Max response time: %.2f ms", max)
+
+	allFetchResponseTimes := make([]float64, 0, len(fetchResponseTimes))
+	for _, rt := range fetchResponseTimes { // Convert all time.Duration to float64
+		rtFloat := float64(rt.Milliseconds())
+		allFetchResponseTimes = append(allFetchResponseTimes, rtFloat)
+	}
+
+	mean, _ = stats.Mean(allFetchResponseTimes)
+	median, _ = stats.Median(allFetchResponseTimes)
+	p99, _ = stats.Percentile(allFetchResponseTimes, 99)
+	min, _ = stats.Min(allFetchResponseTimes)
+	max, _ = stats.Max(allFetchResponseTimes)
+
+	fmt.Println("GET request client metrics")
+	logger.Info().Msgf("GET success count: %d", fetchClient.GetSuccessCount)
+	logger.Info().Msgf("GET success count: %d", fetchClient.GetErrorCount)
 	logger.Info().Msgf("Mean response time: %.2f ms", mean)
 	logger.Info().Msgf("Median response time: %.2f ms", median)
 	logger.Info().Msgf("P99 response time: %.2f ms", p99)
