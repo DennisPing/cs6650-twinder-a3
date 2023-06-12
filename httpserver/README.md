@@ -19,13 +19,6 @@ Make sure to add the environment variables either in an .env file or into your c
 5. AWS_ACCESS_KEY_ID (aws id)
 6. AWS_SECRET_ACCESS_KEY (aws access key)
 
-AXIOM_API_TOKEN=xaat-699934db-ee88-473a-b4e2-6d3a68a7c373
-AXIOM_DATASET=a1-server-metrics
-LOG_LEVEL=warn
-RABBITMQ_HOST=3.132.190.142
-AWS_ACCESS_KEY_ID=AKIAYZ7J7XHKHZIPMHSC
-AWS_SECRET_ACCESS_KEY=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
-
 ## Generate Mocks
 
 ```bash
