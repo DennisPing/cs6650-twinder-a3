@@ -21,26 +21,13 @@ type ConsumerClient struct {
 }
 
 func NewConsumerClient(conn *rabbitmq.Conn, store *store.DatabaseClient) (*ConsumerClient, error) {
+	cc := &ConsumerClient{
+		Conn:  conn,
+		Store: store,
+	}
 	consumer, err := rabbitmq.NewConsumer(
 		conn,
-		func(d rabbitmq.Delivery) rabbitmq.Action {
-			logger.Debug().Msg(string(d.Body))
-
-			var reqBody models.SwipeRequest
-			err := json.Unmarshal(d.Body, &reqBody)
-			if err != nil {
-				logger.Error().Msgf("bad request: %v", err)
-				return rabbitmq.NackDiscard
-			}
-
-			userId, _ := strconv.Atoi(reqBody.Swiper)
-			swipee, _ := strconv.Atoi(reqBody.Swipee)
-			err = store.UpdateUserStats(context.Background(), userId, swipee, reqBody.Direction)
-			if err != nil {
-				logger.Error().Err(err).Interface("SwipeRequest", reqBody).Send()
-			}
-			return rabbitmq.Ack
-		},
+		cc.HandleMessage,
 		"",
 		rabbitmq.WithConsumerOptionsLogging,
 		rabbitmq.WithConsumerOptionsRoutingKey(""), // Bind this default queue to default routing key
@@ -54,11 +41,27 @@ func NewConsumerClient(conn *rabbitmq.Conn, store *store.DatabaseClient) (*Consu
 	if err != nil {
 		return nil, fmt.Errorf("failed to create rabbitmq consumer: %w", err)
 	}
-	return &ConsumerClient{
-		Conn:     conn,
-		Consumer: consumer,
-		Store:    store,
-	}, nil
+	cc.Consumer = consumer
+	return cc, nil
+}
+
+func (cc *ConsumerClient) HandleMessage(d rabbitmq.Delivery) rabbitmq.Action {
+	logger.Debug().Msg(string(d.Body))
+
+	var reqBody models.SwipeRequest
+	err := json.Unmarshal(d.Body, &reqBody)
+	if err != nil {
+		logger.Error().Msgf("bad request: %v", err)
+		return rabbitmq.NackDiscard
+	}
+
+	userId, _ := strconv.Atoi(reqBody.Swiper)
+	swipee, _ := strconv.Atoi(reqBody.Swipee)
+	err = cc.Store.UpdateUserStats(context.Background(), userId, swipee, reqBody.Direction)
+	if err != nil {
+		logger.Error().Err(err).Interface("SwipeRequest", reqBody).Send()
+	}
+	return rabbitmq.Ack
 }
 
 // Close the rabbitmq consumer and the underlying TCP connection
