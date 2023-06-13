@@ -2,14 +2,17 @@
 
 ## Key Takeaways
 
-- Self managing VM instances is painful
-- Vertical scaling is much easier than horizontal scaling
+- DynamoDB scales very well but RIP your credit card.
+- Don't use DynamoDB... just keep it simple with PostgresQL, MySQL, or SQLite.
 
 ## Design
 
-![architecture](results/twinder-a2-architecture.png)
+![architecture](results/twinder-a3-architecture.png)
 
-The HTTP server parses requests from the client and sends off messages to RabbitMQ in a "fire and forget" method. Hence, the phrase "asynchronous message queue". The consumer receives messages from RabbitMQ, processes it, and returns an ACK. In the error case where the message cannot be processed, the consumer returns a NACK instead.
+The client makes 500k POST requests to `/swipe/{leftorright}/` as fast as possible. It also makes 5 GET requests every 1 second to the endpoints `/stats/{userId}/` and `/matches/{userId}` in a round robin fashion.
+
+**Railway region:** us-west-2
+**AWS region:** us-east-2
 
 **Each Consumer has the following configuration:**
 
