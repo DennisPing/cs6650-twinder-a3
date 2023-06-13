@@ -11,7 +11,7 @@
 
 The client makes 500k POST requests to `/swipe/{leftorright}/` as fast as possible. It also makes 5 GET requests every 1 second to the endpoints `/stats/{userId}/` and `/matches/{userId}` in a round robin fashion.
 
-**Railway region:** us-west-2
+**Railway region:** us-west-2  
 **AWS region:** us-east-2
 
 **Each Consumer has the following configuration:**

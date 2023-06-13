@@ -93,7 +93,7 @@ func main() {
 	// Activate the fetch client
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		ticker := time.NewTicker(5 * time.Second)
+		ticker := time.NewTicker(1 * time.Second)
 		defer ticker.Stop() // ticker should stop at ctx.Done() but use "defer" for edge cases
 
 		toggle := true
