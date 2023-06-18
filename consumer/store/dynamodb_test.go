@@ -44,7 +44,6 @@ func TestUpdateUserStats(t *testing.T) {
 
 			databaseClient := DatabaseClient{
 				Client: mockDynamoClient,
-				Table:  "testTable",
 			}
 
 			err := databaseClient.UpdateUserStats(ctx, tc.userId, tc.swipee, tc.swipeDir)
@@ -72,7 +71,7 @@ func TestUpdateUserStatsError(t *testing.T) {
 			swipee:            5678,
 			swipeDir:          "right",
 			mockInternalError: errors.New("aws died"),
-			expectedErrorMsg:  "failed to update item: aws died",
+			expectedErrorMsg:  "UpdateItem failed: aws died",
 		},
 	}
 	for _, tc := range tests {
@@ -86,7 +85,6 @@ func TestUpdateUserStatsError(t *testing.T) {
 
 			databaseClient := DatabaseClient{
 				Client: mockDynamoClient,
-				Table:  "testTable",
 			}
 
 			err := databaseClient.UpdateUserStats(ctx, tc.userId, tc.swipee, tc.swipeDir)

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -20,7 +19,6 @@ type DynamoClienter interface {
 // Database client that communicates with DynamoDB via interface
 type DatabaseClient struct {
 	Client DynamoClienter // Interface
-	Table  string
 }
 
 // Create a new DatabaseClient that has a DynamoDB client
@@ -35,12 +33,12 @@ func NewDatabaseClient() (*DatabaseClient, error) {
 	}
 	return &DatabaseClient{
 		Client: dynamodb.NewFromConfig(cfg),
-		Table:  "SwipeData",
 	}, nil
 }
 
 // Update a user's stats. If userId doesn't exist, then a new entry is created
 func (d *DatabaseClient) UpdateUserStats(ctx context.Context, userId, swipee int, swipeDir string) error {
+	tableName := getTableShard(userId)
 	var update expression.UpdateBuilder
 	switch swipeDir {
 	case "right":
@@ -68,7 +66,7 @@ func (d *DatabaseClient) UpdateUserStats(ctx context.Context, userId, swipee int
 		Key: map[string]types.AttributeValue{
 			"userId": &types.AttributeValueMemberN{Value: strconv.Itoa(userId)},
 		},
-		TableName:                 aws.String(d.Table),
+		TableName:                 &tableName,
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 		UpdateExpression:          expr.Update(),

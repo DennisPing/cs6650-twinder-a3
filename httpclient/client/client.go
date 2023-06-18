@@ -19,13 +19,11 @@ var zlog = logger.GetLogger()
 
 // An api client that has a random number generator
 type ApiClient struct {
-	ServerUrl        string
-	HttpClient       *http.Client
-	Rng              *rand.Rand
-	GetSuccessCount  uint64
-	GetErrorCount    uint64
-	PostSuccessCount uint64
-	PostErrorCount   uint64
+	ServerUrl    string
+	HttpClient   *http.Client
+	Rng          *rand.Rand
+	SuccessCount uint64
+	ErrorCount   uint64
 }
 
 func NewApiClient(transport *http.Transport, serverUrl string) *ApiClient {
@@ -51,7 +49,7 @@ func (client *ApiClient) SwipeLeftOrRight(direction string) {
 	req := client.newPostRequest(endpoint, swipeRequest)
 	resp, err := client.sendRequest(req, 5)
 	if err != nil {
-		client.PostErrorCount += 1
+		client.ErrorCount += 1
 		zlog.Error().Err(err).Str("method", "POST").Str("endpoint", endpoint).Msg("max retries hit")
 		return
 	}
@@ -59,10 +57,10 @@ func (client *ApiClient) SwipeLeftOrRight(direction string) {
 
 	// StatusCode should be 200 or 201, else log warn
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
-		client.PostSuccessCount += 1
+		client.SuccessCount += 1
 		zlog.Debug().Str("method", "POST").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	} else {
-		client.PostErrorCount += 1
+		client.ErrorCount += 1
 		zlog.Warn().Str("method", "POST").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	}
 }
@@ -75,7 +73,7 @@ func (client *ApiClient) GetUserStats() {
 	req := client.newGetRequest(endpoint)
 	resp, err := client.sendRequest(req, 5)
 	if err != nil {
-		client.GetErrorCount += 1
+		client.ErrorCount += 1
 		zlog.Error().Err(err).Str("method", "GET").Str("endpoint", endpoint).Msg("max retries hit")
 		return
 	}
@@ -83,10 +81,10 @@ func (client *ApiClient) GetUserStats() {
 
 	// StatusCode should be 200 or 404, else log warn
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound {
-		client.GetSuccessCount += 1
+		client.SuccessCount += 1
 		zlog.Debug().Str("method", "GET").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	} else {
-		client.GetErrorCount += 1
+		client.ErrorCount += 1
 		zlog.Warn().Str("method", "GET").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	}
 }
@@ -99,7 +97,7 @@ func (client *ApiClient) GetMatches() {
 	req := client.newGetRequest(endpoint)
 	resp, err := client.sendRequest(req, 5)
 	if err != nil {
-		client.GetErrorCount += 1
+		client.ErrorCount += 1
 		zlog.Error().Err(err).Str("method", "GET").Str("endpoint", endpoint).Msg("max retries hit")
 		return
 	}
@@ -107,10 +105,10 @@ func (client *ApiClient) GetMatches() {
 
 	// StatusCode should be 200 or 404, else log warn
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound {
-		client.GetSuccessCount += 1
+		client.SuccessCount += 1
 		zlog.Debug().Str("method", "GET").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	} else {
-		client.GetErrorCount += 1
+		client.ErrorCount += 1
 		zlog.Warn().Str("method", "GET").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	}
 }

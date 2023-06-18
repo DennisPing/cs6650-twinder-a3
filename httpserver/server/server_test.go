@@ -40,7 +40,6 @@ func TestPostSwipe(t *testing.T) {
 
 	databaseStub := &store.DatabaseClient{
 		Client: mockDynamoClient,
-		Table:  "SwipeData",
 	}
 
 	s := NewServer(":8080", mockMetrics, mockPublisher, databaseStub)
@@ -106,7 +105,6 @@ func TestPostSwipeError(t *testing.T) {
 
 	databaseStub := &store.DatabaseClient{
 		Client: mockDynamoClient,
-		Table:  "SwipeData",
 	}
 
 	s := NewServer(":8080", mockMetrics, mockPublisher, databaseStub)
@@ -199,7 +197,6 @@ func TestGetUserStatsHandler(t *testing.T) {
 
 	databaseStub := &store.DatabaseClient{
 		Client: mockDynamoClient,
-		Table:  "SwipeData",
 	}
 
 	s := NewServer(":8080", mockMetrics, mockPublisher, databaseStub)

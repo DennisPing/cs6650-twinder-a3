@@ -45,7 +45,6 @@ func TestGetUserStats(t *testing.T) {
 			mockDynamo.EXPECT().GetItem(ctx, mock.Anything, mock.Anything).Return(tc.mockOutItem, nil)
 			databaseClient := DatabaseClient{
 				Client: mockDynamo,
-				Table:  "testTable",
 			}
 			found, stats, err := databaseClient.GetUserStats(ctx, 1234)
 
@@ -89,7 +88,6 @@ func TestGetUserStatsError(t *testing.T) {
 
 			databaseClient := DatabaseClient{
 				Client: mockDynamo,
-				Table:  "testTable",
 			}
 
 			found, _, err := databaseClient.GetUserStats(ctx, userId)
@@ -134,7 +132,6 @@ func TestUpdateUserStats(t *testing.T) {
 
 			databaseClient := DatabaseClient{
 				Client: mockDynamoClient,
-				Table:  "testTable",
 			}
 
 			err := databaseClient.UpdateUserStats(ctx, tc.userId, tc.swipee, tc.swipeDir)
@@ -174,7 +171,6 @@ func TestUpdateUserStatsError(t *testing.T) {
 
 			databaseClient := DatabaseClient{
 				Client: mockDynamoClient,
-				Table:  "testTable",
 			}
 
 			err := databaseClient.UpdateUserStats(ctx, tc.userId, tc.swipee, tc.swipeDir)

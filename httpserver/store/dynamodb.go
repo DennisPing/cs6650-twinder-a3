@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/DennisPing/cs6650-twinder-a3/lib/models"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression"
@@ -23,7 +22,6 @@ type DynamoClienter interface {
 // Database client that communicates with DynamoDB via interface
 type DatabaseClient struct {
 	Client DynamoClienter // Interface
-	Table  string
 }
 
 // Create a new DatabaseClient that has a DynamoDB client
@@ -38,7 +36,6 @@ func NewDatabaseClient() (*DatabaseClient, error) {
 	}
 	return &DatabaseClient{
 		Client: dynamodb.NewFromConfig(cfg),
-		Table:  "SwipeData",
 	}, nil
 }
 
@@ -79,6 +76,7 @@ func (d *DatabaseClient) GetMatches(ctx context.Context, userId int) (bool, mode
 
 // Update a user's stats. If userId doesn't exist, then a new entry is created
 func (d *DatabaseClient) UpdateUserStats(ctx context.Context, userId, swipee int, swipeDir string) error {
+	tableName := getTableShard(userId)
 	var update expression.UpdateBuilder
 	switch swipeDir {
 	case "right":
@@ -106,7 +104,7 @@ func (d *DatabaseClient) UpdateUserStats(ctx context.Context, userId, swipee int
 		Key: map[string]types.AttributeValue{
 			"userId": &types.AttributeValueMemberN{Value: strconv.Itoa(userId)},
 		},
-		TableName:                 aws.String(d.Table),
+		TableName:                 &tableName,
 		ExpressionAttributeNames:  expr.Names(),
 		ExpressionAttributeValues: expr.Values(),
 		UpdateExpression:          expr.Update(),
@@ -120,8 +118,9 @@ func (d *DatabaseClient) UpdateUserStats(ctx context.Context, userId, swipee int
 
 // Internal method that gets the entire row from DynamoDB
 func (d *DatabaseClient) getItem(ctx context.Context, userId int) (*models.DynamoUserStats, error) {
+	tableName := getTableShard(userId)
 	resp, err := d.Client.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName: aws.String(d.Table),
+		TableName: &tableName,
 		Key: map[string]types.AttributeValue{
 			"userId": &types.AttributeValueMemberN{Value: strconv.Itoa(userId)},
 		},

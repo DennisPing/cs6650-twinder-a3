@@ -3,7 +3,7 @@
 ## Key Takeaways
 
 - DynamoDB scales very well but RIP your credit card.
-- Don't use DynamoDB... just keep it simple with PostgresQL, MySQL, or SQLite.
+- Don't use DynamoDB... just keep it simple with PostgreSQL or SQLite.
 
 ## Design
 

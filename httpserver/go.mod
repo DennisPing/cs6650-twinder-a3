@@ -4,7 +4,6 @@ go 1.19
 
 require (
 	github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230618011939-067fad580a44
-	github.com/aws/aws-sdk-go-v2 v1.18.1
 	github.com/aws/aws-sdk-go-v2/config v1.18.27
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue v1.10.28
 	github.com/aws/aws-sdk-go-v2/feature/dynamodb/expression v1.4.55
@@ -17,6 +16,7 @@ require (
 )
 
 require (
+	github.com/aws/aws-sdk-go-v2 v1.18.1 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.26 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.13.4 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.34 // indirect
