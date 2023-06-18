@@ -3,14 +3,19 @@ package logger
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
 )
 
-var zlog zerolog.Logger
+var (
+	once sync.Once
+	zlog zerolog.Logger // Structured logger
+)
 
-func init() {
+// Lazy initialize loggers
+func setupLogger() {
 	zerolog.TimeFieldFormat = time.RFC3339
 	zerolog.SetGlobalLevel(zerolog.InfoLevel) // Set default log level to INFO
 
@@ -26,22 +31,8 @@ func init() {
 	zlog = zerolog.New(os.Stdout).With().Timestamp().Logger()
 }
 
-func Info() *zerolog.Event {
-	return zlog.Info()
-}
-
-func Error() *zerolog.Event {
-	return zlog.Error()
-}
-
-func Warn() *zerolog.Event {
-	return zlog.Warn()
-}
-
-func Debug() *zerolog.Event {
-	return zlog.Debug()
-}
-
-func Fatal() *zerolog.Event {
-	return zlog.Fatal()
+// Get the logger singleton
+func GetLogger() zerolog.Logger {
+	once.Do(setupLogger)
+	return zlog
 }
