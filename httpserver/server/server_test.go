@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -218,13 +217,13 @@ func TestGetUserStatsHandler(t *testing.T) {
 	assert.Equal(t, 22, stat.NumDislikes)
 }
 
-// Convert a message to an error json with a newline
+// Convert a message to an error json
 func errorJson(message string) string {
 	encoded, _ := json.Marshal(
 		&models.ErrorResponse{
 			Message: message,
 		})
-	return fmt.Sprintf("%s\n", encoded)
+	return string(encoded)
 }
 
 func customMockDynamoClient(t *testing.T, wantItem *models.DynamoUserStats) *mockDynamo.DynamoClienter {

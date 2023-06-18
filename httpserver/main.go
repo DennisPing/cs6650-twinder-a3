@@ -14,6 +14,8 @@ import (
 	"github.com/DennisPing/cs6650-twinder-a3/lib/logger"
 )
 
+var zlog = logger.GetLogger()
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -24,27 +26,27 @@ func main() {
 	// Initialize metrics client
 	metricsClient, err := metrics.NewMetricsClient()
 	if err != nil {
-		logger.Fatal().Msgf("unable to set up metrics: %v", err)
+		zlog.Fatal().Err(err).Msg("unable to set up metrics")
 	}
 
 	// Initialize rabbitmq publisher
 	rmqConn, err := rmqproducer.NewConnection()
 	if err != nil {
-		logger.Fatal().Msgf("unable to make rabbitmq connection: %v", err)
+		zlog.Fatal().Err(err).Msg("unable to make rabbitmq connection")
 	}
 	defer rmqConn.Close()
 	publisher, err := rmqproducer.NewPublisher(rmqConn)
 	if err != nil {
-		logger.Fatal().Msgf("unable to make rabbitmq publisher: %v", err)
+		zlog.Fatal().Err(err).Msg("unable to make rabbitmq publisher")
 	}
 	defer publisher.Close()
 
 	// Initialize database client
 	dbClient, err := store.NewDatabaseClient()
 	if err != nil {
-		logger.Fatal().Msgf("unable to connect to DynamoDB: %v", err)
+		zlog.Fatal().Err(err).Msg("unable to connect to DynamoDB")
 	}
-	logger.Info().Msg("connected to DynamoDB")
+	zlog.Info().Msg("connected to DynamoDB")
 
 	// Initialize the http server
 	server := server.NewServer(addr, metricsClient, publisher, dbClient)
@@ -53,7 +55,7 @@ func main() {
 	fmt.Printf("Starting server on port %s...\n", port)
 	go func() {
 		if err := server.Start(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal().Msgf("server died: %v", err)
+			zlog.Fatal().Err(err).Msg("HTTP server died")
 		}
 	}()
 
@@ -63,6 +65,6 @@ func main() {
 
 	// Block until quit signal
 	<-quit
-	logger.Info().Msg("Shutting down gracefully...")
+	zlog.Info().Msg("Shutting down gracefully...")
 	server.Stop()
 }

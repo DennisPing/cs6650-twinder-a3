@@ -15,6 +15,8 @@ import (
 	"github.com/DennisPing/cs6650-twinder-a3/lib/models"
 )
 
+var zlog = logger.GetLogger()
+
 // An api client that has a random number generator
 type ApiClient struct {
 	ServerUrl        string
@@ -44,18 +46,13 @@ func (client *ApiClient) SwipeLeftOrRight(direction string) {
 		Swipee:  strconv.Itoa(datagen.RandInt(client.Rng, 1, 1_000_000)),
 		Comment: datagen.RandComment(client.Rng, 256),
 	}
-	swipeEndpoint := fmt.Sprintf("%s/swipe/%s/", client.ServerUrl, direction)
+	endpoint := fmt.Sprintf("%s/swipe/%s/", client.ServerUrl, direction)
 
-	req, err := client.newPostRequest(swipeEndpoint, swipeRequest)
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to build POST request") // programmer error
-		return
-	}
-
+	req := client.newPostRequest(endpoint, swipeRequest)
 	resp, err := client.sendRequest(req, 5)
 	if err != nil {
 		client.PostErrorCount += 1
-		logger.Error().Str("method", req.Method).Msgf("max retries hit: %v", err)
+		zlog.Error().Err(err).Str("method", "POST").Str("endpoint", endpoint).Msg("max retries hit")
 		return
 	}
 	defer resp.Body.Close()
@@ -63,27 +60,23 @@ func (client *ApiClient) SwipeLeftOrRight(direction string) {
 	// StatusCode should be 200 or 201, else log warn
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusCreated {
 		client.PostSuccessCount += 1
-		logger.Debug().Str("method", req.Method).Msg(resp.Status)
+		zlog.Debug().Str("method", "POST").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	} else {
 		client.PostErrorCount += 1
-		logger.Warn().Str("method", req.Method).Msg(resp.Status)
+		zlog.Warn().Str("method", "POST").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	}
 }
 
 // GET /stats/{userId}/
 func (client *ApiClient) GetUserStats() {
 	userId := datagen.RandInt(client.Rng, 1, 5000)
-	userStatsEndpoint := fmt.Sprintf("%s/stats/%d/", client.ServerUrl, userId)
+	endpoint := fmt.Sprintf("%s/stats/%d/", client.ServerUrl, userId)
 
-	req, err := client.newGetRequest(userStatsEndpoint)
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to build GET request") // programmer error
-		return
-	}
+	req := client.newGetRequest(endpoint)
 	resp, err := client.sendRequest(req, 5)
 	if err != nil {
 		client.GetErrorCount += 1
-		logger.Error().Str("method", req.Method).Msgf("max retries hit: %v", err)
+		zlog.Error().Err(err).Str("method", "GET").Str("endpoint", endpoint).Msg("max retries hit")
 		return
 	}
 	defer resp.Body.Close()
@@ -91,27 +84,23 @@ func (client *ApiClient) GetUserStats() {
 	// StatusCode should be 200 or 404, else log warn
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound {
 		client.GetSuccessCount += 1
-		logger.Debug().Str("method", req.Method).Msg(resp.Status)
+		zlog.Debug().Str("method", "GET").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	} else {
 		client.GetErrorCount += 1
-		logger.Warn().Str("method", req.Method).Msg(resp.Status)
+		zlog.Warn().Str("method", "GET").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	}
 }
 
 // GET /matches/{userId}/
 func (client *ApiClient) GetMatches() {
 	userId := datagen.RandInt(client.Rng, 1, 5000)
-	matchesEndpoint := fmt.Sprintf("%s/matches/%d/", client.ServerUrl, userId)
+	endpoint := fmt.Sprintf("%s/matches/%d/", client.ServerUrl, userId)
 
-	req, err := client.newGetRequest(matchesEndpoint)
-	if err != nil {
-		logger.Error().Err(err).Msg("failed to build GET request") // programmer error
-		return
-	}
+	req := client.newGetRequest(endpoint)
 	resp, err := client.sendRequest(req, 5)
 	if err != nil {
 		client.GetErrorCount += 1
-		logger.Error().Str("method", req.Method).Msgf("max retries hit: %v", err)
+		zlog.Error().Err(err).Str("method", "GET").Str("endpoint", endpoint).Msg("max retries hit")
 		return
 	}
 	defer resp.Body.Close()
@@ -119,39 +108,39 @@ func (client *ApiClient) GetMatches() {
 	// StatusCode should be 200 or 404, else log warn
 	if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusNotFound {
 		client.GetSuccessCount += 1
-		logger.Debug().Str("method", req.Method).Msg(resp.Status)
+		zlog.Debug().Str("method", "GET").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	} else {
 		client.GetErrorCount += 1
-		logger.Warn().Str("method", req.Method).Msg(resp.Status)
+		zlog.Warn().Str("method", "GET").Str("endpoint", endpoint).Int("code", resp.StatusCode).Msg("response")
 	}
 }
 
-// Create HTTP GET request
-func (client *ApiClient) newGetRequest(url string) (*http.Request, error) {
+// Create a new HTTP GET request
+func (client *ApiClient) newGetRequest(url string) *http.Request {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		zlog.Fatal().Err(err).Msg("failed to build GET request") // programmer error
 	}
-	return req, nil
+	return req
 }
 
-// Create HTTP POST request
-func (client *ApiClient) newPostRequest(url string, data interface{}) (*http.Request, error) {
+// Create a new HTTP POST request
+func (client *ApiClient) newPostRequest(url string, data interface{}) *http.Request {
 	body, err := json.Marshal(data)
 	if err != nil {
-		return nil, err
+		zlog.Fatal().Err(err).Msg("failed to build marshal data") // programmer error
 	}
 	reader := bytes.NewReader(body)
 
 	req, err := http.NewRequest(http.MethodPost, url, reader)
 	if err != nil {
-		return nil, err
+		zlog.Fatal().Err(err).Msg("failed to build POST request") // programmer error
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Content-Length", strconv.Itoa(len(body)))
 
-	return req, nil
+	return req
 }
 
 // Send HTTP request with retry limit

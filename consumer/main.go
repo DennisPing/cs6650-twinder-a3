@@ -10,20 +10,22 @@ import (
 	"github.com/DennisPing/cs6650-twinder-a3/lib/logger"
 )
 
+var zlog = logger.GetLogger()
+
 func main() {
 	store, err := store.NewDatabaseClient()
 	if err != nil {
-		logger.Fatal().Err(err).Msg("unable to connect to DynamoDB")
+		zlog.Fatal().Err(err).Msg("unable to connect to DynamoDB")
 	}
 
 	conn, err := rmqconsumer.NewRmqConn()
 	if err != nil {
-		logger.Fatal().Err(err).Msg("unable to make rabbitmq connection")
+		zlog.Fatal().Err(err).Msg("unable to make RabbitMQ connection")
 	}
 
 	cc, err := rmqconsumer.NewConsumerClient(conn, store)
 	if err != nil {
-		logger.Fatal().Err(err)
+		zlog.Fatal().Err(err).Msg("RabbitMQ client crashed")
 	}
 	defer cc.Close()
 
@@ -32,5 +34,5 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info().Msg("shutting down gracefully...")
+	zlog.Info().Msg("shutting down gracefully...")
 }

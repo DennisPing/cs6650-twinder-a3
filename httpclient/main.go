@@ -19,10 +19,12 @@ const (
 	numRequests = 1000
 )
 
+var zlog = logger.GetLogger()
+
 func main() {
 	serverURL := os.Getenv("SERVER_URL")
 	if serverURL == "" {
-		logger.Fatal().Msg("SERVER_URL env variable not set")
+		zlog.Fatal().Msg("SERVER_URL env variable not set")
 	}
 
 	port := os.Getenv("PORT") // Set the PORT to 8081 for local testing
@@ -36,7 +38,9 @@ func main() {
 			w.WriteHeader(http.StatusOK)
 		})
 		addr := fmt.Sprintf(":%s", port)
-		logger.Fatal().Msg(http.ListenAndServe(addr, nil).Error())
+		if err := http.ListenAndServe(addr, nil); err != nil {
+			zlog.Fatal().Err(err).Msg("health check crashed")
+		}
 	}()
 
 	// Populate the task queue with tasks (token)
@@ -67,8 +71,8 @@ func main() {
 	// Init the fetch client with default transport
 	fetchClient := client.NewApiClient(sharedTransport, serverURL)
 
-	logger.Info().Msgf("Using %d goroutines", maxWorkers)
-	logger.Info().Msgf("Starting %d requests...", numRequests)
+	zlog.Info().Msgf("Using %d goroutines", maxWorkers)
+	zlog.Info().Msgf("Starting %d requests...", numRequests)
 	startTime := time.Now()
 
 	// Activate workers
@@ -131,8 +135,8 @@ func main() {
 	throughput := float64(postSuccessCount) / duration.Seconds()
 
 	fmt.Println("Done!")
-	logger.Info().Msgf("Total run time: %v", duration)
-	logger.Info().Msgf("Throughput: %.2f req/sec", throughput)
+	zlog.Info().Msgf("Total run time: %v", duration)
+	zlog.Info().Msgf("Throughput: %.2f req/sec", throughput)
 
 	allResponseTimes := make([]float64, 0, numRequests)
 	for _, slice := range responseTimes { // Convert all time.Duration to float64
@@ -149,13 +153,13 @@ func main() {
 	max, _ := stats.Max(allResponseTimes)
 
 	fmt.Println("POST request client metrics")
-	logger.Info().Msgf("POST success count: %d", postSuccessCount)
-	logger.Info().Msgf("POST error count: %d", postErrorCount)
-	logger.Info().Msgf("Mean response time: %.2f ms", mean)
-	logger.Info().Msgf("Median response time: %.2f ms", median)
-	logger.Info().Msgf("P99 response time: %.2f ms", p99)
-	logger.Info().Msgf("Min response time: %.2f ms", min)
-	logger.Info().Msgf("Max response time: %.2f ms", max)
+	zlog.Info().Msgf("POST success count: %d", postSuccessCount)
+	zlog.Info().Msgf("POST error count: %d", postErrorCount)
+	zlog.Info().Msgf("Mean response time: %.2f ms", mean)
+	zlog.Info().Msgf("Median response time: %.2f ms", median)
+	zlog.Info().Msgf("P99 response time: %.2f ms", p99)
+	zlog.Info().Msgf("Min response time: %.2f ms", min)
+	zlog.Info().Msgf("Max response time: %.2f ms", max)
 
 	allFetchResponseTimes := make([]float64, 0, len(fetchResponseTimes))
 	for _, rt := range fetchResponseTimes { // Convert all time.Duration to float64
@@ -170,11 +174,11 @@ func main() {
 	max, _ = stats.Max(allFetchResponseTimes)
 
 	fmt.Println("GET request client metrics")
-	logger.Info().Msgf("GET success count: %d", fetchClient.GetSuccessCount)
-	logger.Info().Msgf("GET success count: %d", fetchClient.GetErrorCount)
-	logger.Info().Msgf("Mean response time: %.2f ms", mean)
-	logger.Info().Msgf("Median response time: %.2f ms", median)
-	logger.Info().Msgf("P99 response time: %.2f ms", p99)
-	logger.Info().Msgf("Min response time: %.2f ms", min)
-	logger.Info().Msgf("Max response time: %.2f ms", max)
+	zlog.Info().Msgf("GET success count: %d", fetchClient.GetSuccessCount)
+	zlog.Info().Msgf("GET success count: %d", fetchClient.GetErrorCount)
+	zlog.Info().Msgf("Mean response time: %.2f ms", mean)
+	zlog.Info().Msgf("Median response time: %.2f ms", median)
+	zlog.Info().Msgf("P99 response time: %.2f ms", p99)
+	zlog.Info().Msgf("Min response time: %.2f ms", min)
+	zlog.Info().Msgf("Max response time: %.2f ms", max)
 }

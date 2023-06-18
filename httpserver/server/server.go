@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/metrics"
+	"github.com/DennisPing/cs6650-twinder-a3/httpserver/middleware"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/rmqproducer"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/store"
 	"github.com/DennisPing/cs6650-twinder-a3/lib/logger"
@@ -15,6 +16,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/wagslane/go-rabbitmq"
 )
+
+var zlog = logger.GetLogger()
 
 type Server struct {
 	http.Server
@@ -28,6 +31,7 @@ type Server struct {
 // Create a new server which has an HTTP server, Metrics client, RabbitMQ publisher, and Database client
 func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publisher, dbClient *store.DatabaseClient) *Server {
 	chiRouter := chi.NewRouter()
+	chiRouter.Use(middleware.LoggingMiddleware)
 
 	// Build the server
 	s := &Server{
@@ -59,7 +63,7 @@ func (s *Server) Start() error {
 			case <-s.ticker.C: // Keep on ticking
 				err := s.metrics.SendMetrics()
 				if err != nil {
-					logger.Error().Msgf("unable to send metrics to Axiom: %v", err)
+					zlog.Error().Err(err).Msg("unable to send metrics to Axiom")
 				}
 			}
 		}
@@ -76,13 +80,14 @@ func (s *Server) Stop() {
 	defer cancel()
 
 	if err := s.Shutdown(shutdownCtx); err != nil {
-		logger.Error().Msgf("Failed to shutdown HTTP server gracefully: %v", err)
+		zlog.Error().Err(err).Msg("failed to shutdown HTTP server gracefully")
 	}
 }
 
 // Publish a message out to the RabbitMQ exchange
 func (s *Server) PublishToRmq(payload interface{}) error {
-	logger.Debug().Interface("payload", payload).Msg("publish")
+	zlog.Debug().Interface("payload", payload).Msg("publish")
+
 	respBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
@@ -97,13 +102,13 @@ func (s *Server) PublishToRmq(payload interface{}) error {
 
 // Send a simple HTTP response with no payload
 func writeStatusResponse(w http.ResponseWriter, method string, statusCode int) {
-	logger.Debug().Str("method", method).Int("code", statusCode).Send()
+	zlog.Debug().Str("method", method).Int("code", statusCode).Msg("response")
 	w.WriteHeader(statusCode)
 }
 
 // Send an HTTP response with JSON payload
 func writeJsonResponse(w http.ResponseWriter, method string, statusCode int, payload interface{}) {
-	logger.Debug().Str("method", method).Interface("payload", payload).Send()
+	zlog.Debug().Str("method", method).Interface("payload", payload).Msg("response")
 	respBytes, err := json.Marshal(payload)
 	if err != nil {
 		panic(err)
@@ -116,7 +121,7 @@ func writeJsonResponse(w http.ResponseWriter, method string, statusCode int, pay
 
 // Send an HTTP response error with a message
 func writeErrorResponse(w http.ResponseWriter, method string, statusCode int, message string) {
-	logger.Warn().Str("method", method).Int("code", statusCode).Msg(message)
+	zlog.Warn().Str("method", method).Int("code", statusCode).Msg(message)
 	errBytes, err := json.Marshal(
 		&models.ErrorResponse{
 			Message: message,

@@ -13,6 +13,8 @@ import (
 	"github.com/wagslane/go-rabbitmq"
 )
 
+var zlog = logger.GetLogger()
+
 // A rabbitmq consumer + dynamodb client
 type ConsumerClient struct {
 	Conn     *rabbitmq.Conn
@@ -46,12 +48,12 @@ func NewConsumerClient(conn *rabbitmq.Conn, store *store.DatabaseClient) (*Consu
 }
 
 func (cc *ConsumerClient) HandleMessage(d rabbitmq.Delivery) rabbitmq.Action {
-	logger.Debug().Msg(string(d.Body))
+	zlog.Debug().Msg(string(d.Body))
 
 	var reqBody models.SwipeRequest
 	err := json.Unmarshal(d.Body, &reqBody)
 	if err != nil {
-		logger.Error().Msgf("bad request: %v", err)
+		zlog.Error().Err(err).Msg("bad request")
 		return rabbitmq.NackDiscard
 	}
 
@@ -59,7 +61,7 @@ func (cc *ConsumerClient) HandleMessage(d rabbitmq.Delivery) rabbitmq.Action {
 	swipee, _ := strconv.Atoi(reqBody.Swipee)
 	err = cc.Store.UpdateUserStats(context.Background(), userId, swipee, reqBody.Direction)
 	if err != nil {
-		logger.Error().Err(err).Interface("SwipeRequest", reqBody).Send()
+		zlog.Error().Err(err).Interface("payload", reqBody).Msg("consumer failed on UpdateUserStats")
 	}
 	return rabbitmq.Ack
 }
@@ -75,7 +77,7 @@ func NewRmqConn() (*rabbitmq.Conn, error) {
 	host := os.Getenv("RABBITMQ_HOST")
 
 	if host == "" {
-		logger.Fatal().Msg("you forgot to set the RABBITMQ_HOST environment variable")
+		zlog.Fatal().Msg("you forgot to set the RABBITMQ_HOST env variable")
 	}
 
 	// Create a new connection to rabbitmq
