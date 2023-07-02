@@ -36,8 +36,8 @@ func NewConsumerClient(conn *rabbitmq.Conn, store *store.DatabaseClient) (*Consu
 		rabbitmq.WithConsumerOptionsExchangeDeclare,
 		rabbitmq.WithConsumerOptionsExchangeName("swipes"),
 		rabbitmq.WithConsumerOptionsExchangeKind("fanout"),
-		rabbitmq.WithConsumerOptionsQOSPrefetch(128),
-		rabbitmq.WithConsumerOptionsConcurrency(4),
+		rabbitmq.WithConsumerOptionsQOSPrefetch(64),
+		rabbitmq.WithConsumerOptionsConcurrency(50),
 		rabbitmq.WithConsumerOptionsQueueAutoDelete, // Auto delete the queue upon disconnect
 	)
 	if err != nil {

@@ -21,10 +21,6 @@ func (s *Server) PostSwipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err != nil {
-		writeErrorResponse(w, r.Method, http.StatusBadRequest, "corrupt request body")
-		return
-	}
 	if _, err := strconv.Atoi(sr.Swiper); err != nil {
 		writeErrorResponse(w, r.Method, http.StatusBadRequest, fmt.Sprintf("invalid swiper: %s", sr.Swiper))
 		return

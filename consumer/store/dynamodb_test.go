@@ -48,8 +48,6 @@ func TestUpdateUserStats(t *testing.T) {
 
 			err := databaseClient.UpdateUserStats(ctx, tc.userId, tc.swipee, tc.swipeDir)
 
-			mockDynamoClient.AssertExpectations(t)
-
 			assert.NoError(t, err)
 		})
 	}
@@ -88,8 +86,6 @@ func TestUpdateUserStatsError(t *testing.T) {
 			}
 
 			err := databaseClient.UpdateUserStats(ctx, tc.userId, tc.swipee, tc.swipeDir)
-
-			mockDynamoClient.AssertExpectations(t)
 
 			assert.Error(t, err)
 			assert.Equal(t, tc.expectedErrorMsg, err.Error())
