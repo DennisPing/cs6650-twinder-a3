@@ -7,31 +7,36 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/DennisPing/cs6650-twinder-a3/httpserver/db"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/metrics"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/middleware"
 	"github.com/DennisPing/cs6650-twinder-a3/httpserver/rmqproducer"
-	"github.com/DennisPing/cs6650-twinder-a3/httpserver/store"
-	"github.com/DennisPing/cs6650-twinder-a3/lib/logger"
 	"github.com/DennisPing/cs6650-twinder-a3/lib/models"
 	"github.com/go-chi/chi"
+	_chiMiddleware "github.com/go-chi/chi/v5/middleware"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/hlog"
 	"github.com/wagslane/go-rabbitmq"
 )
 
-var zlog = logger.GetLogger()
-
 type Server struct {
 	http.Server
+	logger  zerolog.Logger
 	metrics metrics.Metrics       // interface
 	pub     rmqproducer.Publisher // interface
-	store   *store.DatabaseClient
+	db      db.Repository         // interface
 	ticker  *time.Ticker
 	cancel  context.CancelFunc
 }
 
 // Create a new server which has an HTTP server, Metrics client, RabbitMQ publisher, and Database client
-func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publisher, dbClient *store.DatabaseClient) *Server {
+func NewServer(addr string, logger zerolog.Logger, metrics metrics.Metrics, publisher rmqproducer.Publisher, dbClient db.Repository) *Server {
 	chiRouter := chi.NewRouter()
-	chiRouter.Use(middleware.LoggingMiddleware)
+
+	chiRouter.Use(hlog.NewHandler(logger)) // Inject the logger into the request's context
+	chiRouter.Use(hlog.RequestHandler("request"))
+	chiRouter.Use(middleware.LoggingMiddleware())
+	chiRouter.Use(_chiMiddleware.StripSlashes)
 
 	// Build the server
 	s := &Server{
@@ -39,14 +44,15 @@ func NewServer(addr string, metrics metrics.Metrics, publisher rmqproducer.Publi
 			Addr:    addr,
 			Handler: chiRouter,
 		},
+		logger:  logger,
 		metrics: metrics,
 		pub:     publisher,
-		store:   dbClient,
+		db:      dbClient,
 	}
 	chiRouter.Get("/health", s.GetHealth)
-	chiRouter.Post("/swipe/{leftorright}/", s.PostSwipe)
-	chiRouter.Get("/matches/{userId}/", s.GetMatches)
-	chiRouter.Get("/stats/{userId}/", s.GetStats)
+	chiRouter.Post("/swipe/{leftorright}", s.PostSwipe)
+	chiRouter.Get("/matches/{userId}", s.GetMatches)
+	chiRouter.Get("/stats/{userId}", s.GetStats)
 	return s
 }
 
@@ -63,7 +69,7 @@ func (s *Server) Start() error {
 			case <-s.ticker.C: // Keep on ticking
 				err := s.metrics.SendMetrics()
 				if err != nil {
-					zlog.Error().Err(err).Msg("unable to send metrics to Axiom")
+					s.logger.Error().Err(err).Msg("unable to send metrics to Axiom")
 				}
 			}
 		}
@@ -80,13 +86,13 @@ func (s *Server) Stop() {
 	defer cancel()
 
 	if err := s.Shutdown(shutdownCtx); err != nil {
-		zlog.Error().Err(err).Msg("failed to shutdown HTTP server gracefully")
+		s.logger.Error().Err(err).Msg("failed to shutdown HTTP server gracefully")
 	}
 }
 
 // Publish a message out to the RabbitMQ exchange
 func (s *Server) PublishToRmq(payload interface{}) error {
-	zlog.Debug().Interface("payload", payload).Msg("publish")
+	s.logger.Debug().Interface("payload", payload).Msg("publish")
 
 	respBytes, err := json.Marshal(payload)
 	if err != nil {
@@ -101,14 +107,12 @@ func (s *Server) PublishToRmq(payload interface{}) error {
 }
 
 // Send a simple HTTP response with no payload
-func writeStatusResponse(w http.ResponseWriter, method string, statusCode int) {
-	zlog.Debug().Str("method", method).Int("code", statusCode).Msg("response")
+func writeStatusResponse(logger zerolog.Logger, w http.ResponseWriter, method string, statusCode int) {
 	w.WriteHeader(statusCode)
 }
 
 // Send an HTTP response with JSON payload
-func writeJsonResponse(w http.ResponseWriter, method string, statusCode int, payload interface{}) {
-	zlog.Debug().Str("method", method).Interface("payload", payload).Msg("response")
+func writeJsonResponse(logger zerolog.Logger, w http.ResponseWriter, method string, statusCode int, payload interface{}) {
 	respBytes, err := json.Marshal(payload)
 	if err != nil {
 		panic(err)
@@ -120,8 +124,7 @@ func writeJsonResponse(w http.ResponseWriter, method string, statusCode int, pay
 }
 
 // Send an HTTP response error with a message
-func writeErrorResponse(w http.ResponseWriter, method string, statusCode int, message string) {
-	zlog.Warn().Str("method", method).Int("code", statusCode).Msg(message)
+func writeErrorResponse(logger zerolog.Logger, w http.ResponseWriter, method string, statusCode int, message string) {
 	errBytes, err := json.Marshal(
 		&models.ErrorResponse{
 			Message: message,

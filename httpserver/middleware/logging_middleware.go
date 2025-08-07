@@ -2,26 +2,38 @@ package middleware
 
 import (
 	"net/http"
-	"time"
 
-	"github.com/DennisPing/cs6650-twinder-a3/lib/logger"
 	"github.com/rs/zerolog/hlog"
 )
 
-var zlog = logger.GetLogger()
+// Custom ResponseWriter to capture the status code
+type statusRecorder struct {
+	http.ResponseWriter
+	statusCode int
+}
 
-func LoggingMiddleware(next http.Handler) http.Handler {
-	h := hlog.NewHandler(zlog)
+func newStatusRecorder(w http.ResponseWriter) *statusRecorder {
+	return &statusRecorder{ResponseWriter: w, statusCode: http.StatusOK}
+}
 
-	accessHandler := hlog.AccessHandler(
-		func(r *http.Request, status, size int, duration time.Duration) {
-			hlog.FromRequest(r).Info().
-				Str("method", r.Method).
-				Stringer("url", r.URL).
-				Int("code", status).
-				Dur("response_time", duration).
-				Msg("request")
+func (r *statusRecorder) WriteHeader(code int) {
+	r.statusCode = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+func LoggingMiddleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rec := newStatusRecorder(w)
+			next.ServeHTTP(rec, r)
+
+			// Extract the logger from the request's context
+			log := hlog.FromRequest(r)
+
+			// Log the method, URL, and status code
+			log.Info().
+				Int("status", rec.statusCode).
+				Send()
 		})
-
-	return h(accessHandler(next))
+	}
 }
