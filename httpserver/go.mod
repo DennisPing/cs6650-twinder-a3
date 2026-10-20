@@ -1,6 +1,6 @@
 module github.com/DennisPing/cs6650-twinder-a3/httpserver
 
-go 1.19
+go 1.24
 
 require (
 	github.com/DennisPing/cs6650-twinder-a3/lib v0.0.0-20230618011939-067fad580a44
@@ -37,7 +37,7 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/klauspost/compress v1.16.6 // indirect
+	github.com/klauspost/compress v1.18.7 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
